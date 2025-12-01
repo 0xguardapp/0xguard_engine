@@ -1,0 +1,113 @@
+/* Pulsing dot animations */
+@keyframes pulse-green {
+    0%, 100% {
+        opacity: 1;
+        box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+    }
+    50% {
+        opacity: 0.8;
+        box-shadow: 0 0 0 4px rgba(34, 197, 94, 0);
+    }
+}
+
+@keyframes pulse-amber {
+    0%, 100% {
+        opacity: 1;
+        box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.7);
+    }
+    50% {
+        opacity: 0.8;
+        box-shadow: 0 0 0 4px rgba(251, 191, 36, 0);
+    }
+}
+
+@keyframes pulse-red {
+    0%, 100% {
+        opacity: 1;
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+    }
+    50% {
+        opacity: 0.8;
+        box-shadow: 0 0 0 4px rgba(239, 68, 68, 0);
+    }
+}
+
+.pulse-green {
+    animation: pulse-green 2s ease-in-out infinite;
+}
+
+.pulse-amber {
+    animation: pulse-amber 2s ease-in-out infinite;
+}
+
+.pulse-red {
+    animation: pulse-red 2s ease-in-out infinite;
+}
+
+/* Terminal scrollbar styling */
+#terminal::-webkit-scrollbar {
+    width: 8px;
+}
+
+#terminal::-webkit-scrollbar-track {
+    background: #000000;
+}
+
+#terminal::-webkit-scrollbar-thumb {
+    background: #333333;
+    border-radius: 4px;
+}
+
+#terminal::-webkit-scrollbar-thumb:hover {
+    background: #444444;
+}
+
+/* Vulnerability highlight */
+.vulnerability-line {
+    background-color: rgba(239, 68, 68, 0.15);
+    border-left: 3px solid rgba(239, 68, 68, 0.5);
+    padding-left: 8px;
+    margin-left: -8px;
+    animation: vulnerability-glow 2s ease-in-out infinite;
+}
+
+@keyframes vulnerability-glow {
+    0%, 100% {
+        background-color: rgba(239, 68, 68, 0.15);
+    }
+    50% {
+        background-color: rgba(239, 68, 68, 0.25);
+    }
+}
+
+/* Terminal line styling */
+.terminal-line {
+    margin-bottom: 2px;
+    padding: 2px 0;
+    font-family: 'JetBrains Mono', monospace;
+    line-height: 1.5;
+}
+
+.terminal-timestamp {
+    color: #666666;
+    margin-right: 8px;
+}
+
+.terminal-icon {
+    margin-right: 6px;
+}
+
+.terminal-actor {
+    color: #ffffff;
+    font-weight: 500;
+}
+
+.terminal-message {
+    color: #cccccc;
+}
+
+/* Smooth scrolling */
+#terminal {
+    scroll-behavior: smooth;
+}
+

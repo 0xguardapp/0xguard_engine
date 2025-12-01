@@ -1,4 +1,10 @@
 from uagents import Agent, Context, Model
+import sys
+from pathlib import Path
+
+# Add agent directory to path for logger import
+sys.path.insert(0, str(Path(__file__).parent))
+from logger import log
 
 
 class AttackMessage(Model):
@@ -25,10 +31,13 @@ def create_target_agent(port: int = 8000) -> Agent:
     async def introduce(ctx: Context):
         ctx.logger.info(f"Target Agent started: {target.address}")
         ctx.logger.info("Protecting SECRET_KEY...")
+        log("Target", f"Target Agent started: {target.address}", "🎯", "info")
+        log("Target", "Listening on port 8000", "🎯", "info")
 
     @target.on_message(model=AttackMessage)
     async def handle_attack(ctx: Context, sender: str, msg: AttackMessage):
         ctx.logger.info(f"Received attack from {sender}: '{msg.payload}'")
+        log("Target", f"Processing input: '{msg.payload}'...", "🎯", "info")
 
         if msg.payload == SECRET_KEY:
             response = ResponseMessage(
@@ -36,12 +45,14 @@ def create_target_agent(port: int = 8000) -> Agent:
                 message=f"Access Granted! Flag: {SECRET_KEY}",
             )
             ctx.logger.info("SECRET_KEY COMPROMISED!")
+            log("Target", f"Processing input... Vulnerability triggered! Leaking SECRET_KEY.", "🎯", "vulnerability", is_vulnerability=True)
         else:
             response = ResponseMessage(
                 status="DENIED",
                 message="Access Denied",
             )
             ctx.logger.info("Attack blocked")
+            log("Target", f"Attack blocked: '{msg.payload}'", "🎯", "info")
 
         await ctx.send(sender, response)
 

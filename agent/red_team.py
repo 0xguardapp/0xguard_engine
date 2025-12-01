@@ -1,4 +1,10 @@
 from uagents import Agent, Context, Model
+import sys
+from pathlib import Path
+
+# Add agent directory to path for logger import
+sys.path.insert(0, str(Path(__file__).parent))
+from logger import log
 
 
 class AttackMessage(Model):
@@ -38,6 +44,8 @@ def create_red_team_agent(
     async def introduce(ctx: Context):
         ctx.logger.info(f"Red Team Agent started: {red_team.address}")
         ctx.logger.info(f"Target: {target_address}")
+        log("RedTeam", f"Red Team Agent started: {red_team.address}", "🔴", "info")
+        log("RedTeam", f"Target: {target_address}", "🔴", "info")
 
     @red_team.on_interval(period=3.0)
     async def send_attack(ctx: Context):
@@ -48,6 +56,7 @@ def create_red_team_agent(
         ctx.logger.info(
             f"Sending attack #{state['attack_index'] + 1}: '{payload}'"
         )
+        log("RedTeam", f"Executing vector: '{payload}'", "🔴", "attack")
 
         await ctx.send(
             target_address,
@@ -60,9 +69,11 @@ def create_red_team_agent(
     async def handle_response(ctx: Context, sender: str, msg: ResponseMessage):
         ctx.logger.info(f"Response received: {msg.status}")
         ctx.logger.info(f"Message: {msg.message}")
+        log("RedTeam", f"Response received: {msg.status} - {msg.message}", "🔴", "info")
 
         if msg.status == "SUCCESS":
             ctx.logger.info("SUCCESS! Secret key found!")
+            log("RedTeam", "SUCCESS! Secret key found! Vulnerability exploited!", "🔴", "vulnerability", is_vulnerability=True)
             state["attack_complete"] = True
 
     return red_team
