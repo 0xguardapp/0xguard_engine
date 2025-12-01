@@ -1,0 +1,39 @@
+// AuditVerifier.compact setup
+// Zero-knowledge audit verification contract for Midnight 
+// Allows private verification of audit data while storing proof hashes publicly
+
+pragma language_version >= 0.16 && <= 0.18;
+import CompactStandardLibrary;
+
+// Public ledger state - visible to all
+export ledger proofs: Map<Bytes<32>, Bytes<32>>;          
+export ledger verified_audits: Map<Bytes<32>, Bytes<32>>; // audit_id -> proof_hash (duplicate for query convenience)
+export ledger accepted_at: Map<Bytes<32>, Uint<64>>;      // audit_id -> timestamp
+
+// Private witness data - never revealed on-chain
+witness nonce(): Bytes<32>;          
+witness risk_score(): Uint<64>;       
+witness attacker_wallet(): Bytes<32>; 
+
+
+export circuit submitAudit(
+  audit_id: Bytes<32>,      // Public audit identifier
+  threshold: Uint<64>,      // Minimum risk score required
+  expires_at: Uint<64>     
+): [] {
+
+  // Retrieve private witness data (only accessible to prover)
+  const witnessNonce = nonce();
+  const witnessRiskScore = risk_score();
+  const witnessAttackerWallet = attacker_wallet();
+
+
+  assert(witnessRiskScore >= threshold, "risk_score < threshold");
+
+  // Generate deterministic proof hash from private and public inputs
+  const proofHash = persistentHash<Vector<3, Bytes<32>>>([audit_id, witnessNonce, witnessAttackerWallet]);
+
+  proofs.insert(disclose(audit_id), disclose(proofHash));
+  verified_audits.insert(disclose(audit_id), disclose(proofHash));
+  accepted_at.insert(disclose(audit_id), disclose(expires_at));
+}
