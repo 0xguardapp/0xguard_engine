@@ -6,6 +6,13 @@
       "amount": 1,
       "exploit": "fetch_ai_2024",
       "timestamp": "2025-12-01T19:32:05.147745"
+    },
+    {
+      "type": "bounty_token",
+      "recipient": "agent1qf2mssnkhf29fk7vj2fy8ekmhdfke0ptu4k9dyvfcuk7tt6easatge9z96d",
+      "amount": 1,
+      "exploit": "fetch_ai_2024",
+      "timestamp": "2025-12-01T20:30:40.671290"
     }
   ]
 }
