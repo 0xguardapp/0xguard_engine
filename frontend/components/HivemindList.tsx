@@ -58,7 +58,15 @@ export default function HivemindList({ logs }: { logs: LogEntry[] }) {
       </div>
       <div className="space-y-2">
         {attacks.length === 0 ? (
-          <div className="text-gray-500 text-sm">No attacks learned yet...</div>
+          <div className="text-gray-500 text-sm py-4 px-2 text-center border border-dashed border-[#27272a] rounded-lg bg-black/20">
+            <div className="flex flex-col items-center gap-2">
+              <span className="text-2xl">🔥</span>
+              <div className="text-xs text-gray-400">
+                <div className="font-medium mb-1">No exploits discovered yet</div>
+                <div className="text-gray-500">Agents still scanning...</div>
+              </div>
+            </div>
+          </div>
         ) : (
           attacks.map((attack, index) => (
             <div

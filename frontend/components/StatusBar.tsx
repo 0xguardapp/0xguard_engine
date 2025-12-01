@@ -23,7 +23,7 @@ export default function StatusBar({ activeAuditAddress, onNewAuditClick }: Statu
           </div>
           <button
             onClick={onNewAuditClick}
-            className="px-6 py-2 bg-white text-black rounded border border-[#27272a] hover:bg-gray-100 transition-all duration-200 font-medium text-sm"
+            className="px-4 py-1.5 bg-white text-black rounded-lg border border-[#27272a] hover:bg-gray-100 transition-all duration-200 font-medium text-sm"
           >
             New Audit
           </button>

@@ -35,7 +35,8 @@ export default function Terminal({ logs }: TerminalProps) {
       </div>
       <div
         ref={terminalRef}
-        className="h-[600px] overflow-y-auto p-4 bg-black mono text-sm terminal-scrollbar"
+        className="h-[600px] overflow-y-auto p-4 bg-black text-sm terminal-scrollbar"
+        style={{ fontFamily: 'var(--font-jetbrains-mono), "Fira Code", "Consolas", monospace' }}
       >
         {logs.length === 0 ? (
           <div className="text-gray-500">Waiting for agent activity...</div>
