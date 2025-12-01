@@ -13,6 +13,7 @@ export default function Header() {
               fill="currentColor"
               xmlns="http://www.w3.org/2000/svg"
               preserveAspectRatio="xMidYMid meet"
+              style={{ aspectRatio: '1 / 1' }}
             >
               <path d="M 8 12 L 8 22 L 62 20 L 62 14 Z" fill="currentColor" />
               <path d="M 8 30 L 8 40 L 54 38 L 54 32 Z" fill="currentColor" />
