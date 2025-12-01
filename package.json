@@ -1,0 +1,22 @@
+{
+  "name": "0xguard",
+  "version": "0.1.0",
+  "private": true,
+  "description": "0xGuard - AI Security Audit Platform",
+  "workspaces": [
+    "frontend",
+    "contracts/midnight"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=frontend",
+    "build": "npm run build --workspace=frontend",
+    "start": "npm run start --workspace=frontend",
+    "lint": "npm run lint --workspace=frontend",
+    "install:all": "npm install"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  }
+}
+

@@ -1,21 +1,62 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import Header from '@/components/Header';
-import SummaryBanner from '@/components/SummaryBanner';
+import StatusBar from '@/components/StatusBar';
+import NewAuditModal from '@/components/NewAuditModal';
 import AgentCard from '@/components/AgentCard';
 import Terminal from '@/components/Terminal';
 import HivemindList from '@/components/HivemindList';
 import ZKProofsList from '@/components/ZKProofsList';
 import { useLogs } from '@/hooks/useLogs';
+import { useToast } from '@/hooks/useToast';
 
 export default function Home() {
-  const logs = useLogs();
+  const { logs, resetLogs } = useLogs();
+  const toast = useToast();
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [activeAuditAddress, setActiveAuditAddress] = useState<string | undefined>();
+
+  const handleNewAuditClick = () => {
+    setIsModalOpen(true);
+  };
+
+  const handleDeploy = async (targetAddress: string, intensity: string) => {
+    try {
+      const response = await fetch('/api/audit/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetAddress, intensity }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Clear terminal logs
+        resetLogs();
+        
+        // Update active audit address
+        setActiveAuditAddress(targetAddress);
+        
+        // Show success toast
+        toast.info('Swarm deployed successfully');
+        
+        // Close modal
+        setIsModalOpen(false);
+      } else {
+        toast.error(data.error || 'Failed to deploy swarm');
+      }
+    } catch (error) {
+      console.error('Error deploying swarm:', error);
+      toast.error('Failed to deploy swarm');
+    }
+  };
 
   return (
     <div className="min-h-screen bg-black text-white">
       <Header />
-      <SummaryBanner />
+      <StatusBar activeAuditAddress={activeAuditAddress} onNewAuditClick={handleNewAuditClick} />
+      <NewAuditModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onDeploy={handleDeploy} />
 
       {/* Main Dashboard Content */}
       <div className="max-w-[1920px] mx-auto px-6 py-6">
@@ -63,7 +104,7 @@ export default function Home() {
 
               {/* Judge Card */}
               <AgentCard
-                name="unibase-judge-oracle"
+                name="judge-oracle"
                 status="Standby"
                 logs={logs}
                 icon={

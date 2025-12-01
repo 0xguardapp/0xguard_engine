@@ -1,9 +1,14 @@
+'use client';
+
 import React from 'react';
 import Image from 'next/image';
+import { useWallet } from '@/hooks/useWallet';
 
 export default function Header() {
+  const { isConnected, address, isLoading, connectWallet, disconnectWallet, getTruncatedAddress } = useWallet();
+
   return (
-    <header className="border-b border-gray-800 bg-black sticky top-0 z-50 backdrop-blur-sm bg-black/95">
+    <header className="border-b border-[#27272a] bg-black sticky top-0 z-50 backdrop-blur-sm bg-black/95">
       <div className="max-w-[1920px] mx-auto px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
@@ -18,13 +23,24 @@ export default function Header() {
             />
             <span className="font-semibold text-xl tracking-tight">0xGuard</span>
           </div>
-          <div className="text-gray-400 text-sm">my-team / 0xGuard / production</div>
+          <div className="text-gray-400 text-sm">my-team / audit-production</div>
         </div>
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-900 rounded-lg border border-gray-800 hover:border-gray-700 transition-all duration-200">
-            <div className="w-2 h-2 bg-green-500 rounded-full pulse-green"></div>
-            <span className="text-sm mono text-gray-400">fetch1a...9zX</span>
-          </div>
+          {isConnected && address ? (
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-[#09090b] rounded-lg border border-[#27272a] hover:border-gray-700 transition-all duration-200 cursor-pointer" onClick={disconnectWallet}>
+              <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-purple-500"></div>
+              <div className="w-2 h-2 bg-green-500 rounded-full pulse-green"></div>
+              <span className="text-sm mono text-gray-300">{getTruncatedAddress()}</span>
+            </div>
+          ) : (
+            <button
+              onClick={connectWallet}
+              disabled={isLoading}
+              className="px-4 py-1.5 bg-white text-black rounded-lg border border-[#27272a] hover:bg-gray-100 transition-all duration-200 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isLoading ? 'Connecting...' : 'Connect Wallet'}
+            </button>
+          )}
           <a
             href="#"
             className="text-gray-500 hover:text-white transition-all duration-200"

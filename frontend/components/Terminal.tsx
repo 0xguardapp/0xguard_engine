@@ -18,9 +18,9 @@ export default function Terminal({ logs }: TerminalProps) {
   }, [logs, followLogs]);
 
   return (
-    <div className="bg-[#111111] border border-gray-800 rounded-lg overflow-hidden hover:border-gray-700 transition-all duration-200">
+    <div className="bg-[#09090b] border border-[#27272a] rounded-lg overflow-hidden hover:border-gray-700 transition-all duration-200">
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
-        <h2 className="text-lg font-semibold tracking-tight">Live Interaction Logs</h2>
+        <h2 className="text-lg font-semibold tracking-tight">Terminal</h2>
         <label className="flex items-center gap-2 cursor-pointer group">
           <input
             type="checkbox"

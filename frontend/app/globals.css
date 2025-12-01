@@ -2,9 +2,16 @@
 
 :root {
   --background: #000000;
+  --background-alt: #09090b;
   --foreground: #ffffff;
+  --border: #27272a;
   --font-inter: var(--font-inter);
   --font-jetbrains-mono: var(--font-jetbrains-mono);
+  /* Accent colors */
+  --accent-red: #ef4444;
+  --accent-amber: #f59e0b;
+  --accent-cyan: #06b6d4;
+  --accent-green: #22c55e;
 }
 
 body {
@@ -170,4 +177,60 @@ h1, h2, h3, h4, h5, h6 {
 
 .terminal-line {
   animation: fadeIn 200ms ease-out;
+}
+
+/* Slide-in animation for new exploit rows */
+@keyframes slideInFromTop {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.slide-in {
+  animation: slideInFromTop 300ms ease-out;
+}
+
+/* Green flash animation for new items */
+@keyframes greenFlash {
+  0%, 100% {
+    background-color: transparent;
+  }
+  50% {
+    background-color: rgba(34, 197, 94, 0.2);
+  }
+}
+
+.green-flash {
+  animation: greenFlash 1s ease-in-out;
+}
+
+/* Modal animations */
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.modal-enter {
+  animation: modalFadeIn 200ms ease-out;
+}
+
+/* Toast container styles */
+.toast-container {
+  font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+/* Smooth transitions for interactive elements */
+.transition-smooth {
+  transition: all 200ms ease;
 }
