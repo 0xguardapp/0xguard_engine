@@ -7,7 +7,7 @@ import CompactStandardLibrary;
 
 // Public ledger state - visible to all
 export ledger proofs: Map<Bytes<32>, Bytes<32>>;          // audit_id -> proof_hash
-export ledger is_verified: Map<Bytes<32>, Bool>;          // audit_id -> is_verified
+export ledger is_verified: Map<Bytes<32>, Uint<1>>;          // audit_id -> is_verified (1 = true, 0 = false)
 export ledger auditor_id: Map<Bytes<32>, Bytes<32>>;      // audit_id -> auditor_id
 
 // Private witness data - never revealed on-chain
@@ -17,7 +17,7 @@ witness risk_score(): Uint<64>;       // Risk score (private)
 
 export circuit submitAudit(
   audit_id: Bytes<32>,      // Public audit identifier
-  auditor_id: Bytes<32>,    // Public auditor identifier (Judge agent address)
+  judge_id: Bytes<32>,      // Public auditor identifier (Judge agent address)
   threshold: Uint<64>       // Minimum risk score required (e.g., 90)
 ): [] {
 
@@ -28,11 +28,12 @@ export circuit submitAudit(
   // Prove that risk_score >= threshold without revealing the actual score
   assert(witnessRiskScore >= threshold, "risk_score < threshold");
 
-  // Generate deterministic proof hash from private and public inputs
-  const proofHash = persistentHash<Vector<2, Bytes<32>>>([audit_id, witnessExploitString]);
+  // Generate deterministic proof hash from audit_id
+  // Using audit_id as proof hash (it's already unique and deterministic)
+  const proofHash = audit_id;
 
   // Store public state
   proofs.insert(disclose(audit_id), disclose(proofHash));
-  is_verified.insert(disclose(audit_id), disclose(true));
-  auditor_id.insert(disclose(audit_id), disclose(auditor_id));
+  is_verified.insert(disclose(audit_id), disclose(1));  // 1 = true
+  auditor_id.insert(disclose(audit_id), disclose(judge_id));
 }

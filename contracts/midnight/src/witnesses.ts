@@ -24,14 +24,29 @@ export const createAuditPrivateState = (
  * Witness implementations - these provide private data to the ZK circuits
  * Each function returns: [newPrivateState, returnValue]
  */
+/**
+ * Pad a Uint8Array to exactly 64 bytes
+ */
+const padTo64Bytes = (data: Uint8Array): Uint8Array => {
+  if (data.length === 64) {
+    return data;
+  }
+  if (data.length > 64) {
+    return data.slice(0, 64);
+  }
+  const padded = new Uint8Array(64);
+  padded.set(data, 0);
+  return padded;
+};
+
 export const witnesses = {
-  // Provides the exploit string
+  // Provides the exploit string (padded to exactly 64 bytes)
   exploit_string: ({
     privateState,
   }: WitnessContext<Ledger, AuditPrivateState>): [
     AuditPrivateState,
     Uint8Array
-  ] => [privateState, privateState.exploitString],
+  ] => [privateState, padTo64Bytes(privateState.exploitString)],
 
   // Provides the risk score
   risk_score: ({

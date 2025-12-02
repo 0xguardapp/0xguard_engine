@@ -77,7 +77,7 @@ describe("AuditVerifier smart contract", () => {
     expect(ledgerState.auditor_id.size()).toEqual(1n);
 
     // Check that the audit was stored with correct values
-    expect(ledgerState.is_verified.lookup(auditId)).toEqual(true);
+    expect(ledgerState.is_verified.lookup(auditId)).toEqual(1n); // Uint<1>: 1 = true
     expect(ledgerState.auditor_id.lookup(auditId)).toEqual(auditorId);
   });
 
@@ -167,7 +167,7 @@ describe("AuditVerifier smart contract", () => {
 
     const ledgerState = simulator.getLedger();
     expect(ledgerState.is_verified.member(auditId)).toEqual(true);
-    expect(ledgerState.is_verified.lookup(auditId)).toEqual(true);
+    expect(ledgerState.is_verified.lookup(auditId)).toEqual(1n); // Uint<1>: 1 = true
   });
 
   it("stores different proof hashes for different audits", () => {
@@ -233,7 +233,7 @@ describe("AuditVerifier smart contract", () => {
     expect(ledgerState.auditor_id.member(auditId)).toEqual(true);
 
     // Verify values are correct
-    expect(ledgerState.is_verified.lookup(auditId)).toEqual(true);
+    expect(ledgerState.is_verified.lookup(auditId)).toEqual(1n); // Uint<1>: 1 = true
     expect(ledgerState.auditor_id.lookup(auditId)).toEqual(auditorId);
     expect(ledgerState.proofs.lookup(auditId)).toBeDefined();
   });
