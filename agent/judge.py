@@ -2,7 +2,13 @@
 Judge Agent - Monitors Red Team and Target communications.
 Triggers Unibase transactions for bounty tokens when vulnerabilities are discovered.
 """
-from uagents import Agent, Context, Model
+from uagents import Agent, Context, Model, Protocol
+from uagents_core.contrib.protocols.chat import (
+    ChatMessage,
+    ChatAcknowledgement,
+    TextContent,
+    chat_protocol_spec
+)
 import sys
 import os
 from pathlib import Path
@@ -28,22 +34,33 @@ class AttackMessage(Model):
 SECRET_KEY = "fetch_ai_2024"
 
 
-def create_judge_agent(port: int = 8002) -> Agent:
+def create_judge_agent(port: int = None) -> Agent:
     """
     Create a Judge agent that monitors Red Team and Target communications.
     
     Args:
-        port: Port for the Judge agent
+        port: Port for the Judge agent (overrides env var if provided)
         
     Returns:
         Agent: Configured Judge agent
     """
+    # Get configuration from environment variables with sensible defaults
+    agent_ip = os.getenv("JUDGE_IP") or os.getenv("AGENT_IP", "localhost")
+    agent_port = port or int(os.getenv("JUDGE_PORT") or os.getenv("AGENT_PORT", "8002"))
+    agent_seed = os.getenv("JUDGE_SEED") or os.getenv("AGENT_SEED", "judge_secret_seed_phrase")
+    use_mailbox = os.getenv("USE_MAILBOX", "true").lower() == "true"
+    
     judge = Agent(
         name="judge_agent",
-        port=port,
-        seed="judge_secret_seed_phrase",
-        endpoint=[f"http://localhost:{port}/submit"],
+        port=agent_port,
+        seed=agent_seed,  # CRITICAL: Don't hardcode seeds in production!
+        endpoint=[f"http://{agent_ip}:{agent_port}/submit"],
+        mailbox=use_mailbox,  # Recommended for Agentverse
     )
+    
+    # Include the Chat Protocol
+    chat_proto = Protocol(spec=chat_protocol_spec)
+    judge.include(chat_proto)
 
     state = {
         "monitored_attacks": {},  # Track attack flow: {red_team_address: last_payload}
@@ -160,6 +177,6 @@ def create_judge_agent(port: int = 8002) -> Agent:
 
 
 if __name__ == "__main__":
-    agent = create_judge_agent(port=8002)
+    agent = create_judge_agent()
     agent.run()
 

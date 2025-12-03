@@ -1,5 +1,12 @@
-from uagents import Agent, Context, Model
+from uagents import Agent, Context, Model, Protocol
+from uagents_core.contrib.protocols.chat import (
+    ChatMessage,
+    ChatAcknowledgement,
+    TextContent,
+    chat_protocol_spec
+)
 import sys
+import os
 from pathlib import Path
 
 # Add agent directory to path for logger import
@@ -19,13 +26,24 @@ class ResponseMessage(Model):
 SECRET_KEY = "fetch_ai_2024"
 
 
-def create_target_agent(port: int = 8000, judge_address: str = None) -> Agent:
+def create_target_agent(port: int = None, judge_address: str = None) -> Agent:
+    # Get configuration from environment variables with sensible defaults
+    agent_ip = os.getenv("TARGET_IP") or os.getenv("AGENT_IP", "localhost")
+    agent_port = port or int(os.getenv("TARGET_PORT") or os.getenv("AGENT_PORT", "8000"))
+    agent_seed = os.getenv("TARGET_SEED") or os.getenv("AGENT_SEED", "target_secret_seed_phrase")
+    use_mailbox = os.getenv("USE_MAILBOX", "true").lower() == "true"
+    
     target = Agent(
         name="target_agent",
-        port=port,
-        seed="target_secret_seed_phrase",
-        endpoint=[f"http://localhost:{port}/submit"],
+        port=agent_port,
+        seed=agent_seed,  # CRITICAL: Don't hardcode seeds in production!
+        endpoint=[f"http://{agent_ip}:{agent_port}/submit"],
+        mailbox=use_mailbox,  # Recommended for Agentverse
     )
+    
+    # Include the Chat Protocol
+    chat_proto = Protocol(spec=chat_protocol_spec)
+    target.include(chat_proto)
 
     @target.on_event("startup")
     async def introduce(ctx: Context):
@@ -68,5 +86,5 @@ def create_target_agent(port: int = 8000, judge_address: str = None) -> Agent:
 
 
 if __name__ == "__main__":
-    agent = create_target_agent(port=8000)
+    agent = create_target_agent()
     agent.run()
