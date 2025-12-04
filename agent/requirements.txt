@@ -1,0 +1,20 @@
+# Judge Agent Requirements
+# Python version: >=3.11
+
+# Core Dependencies
+uagents>=0.22.10
+httpx>=0.25.0
+
+# Membase Integration
+membase @ git+https://github.com/unibaseio/membase.git
+
+# Configuration Management
+python-dotenv>=1.0.0
+
+# Testing Dependencies
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+pytest-mock>=3.11.0
+pytest-benchmark>=4.0.0
+pytest-cov>=4.1.0
+
