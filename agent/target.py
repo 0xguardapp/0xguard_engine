@@ -7,11 +7,16 @@ from uagents_core.contrib.protocols.chat import (
 )
 import sys
 import os
+import httpx  # pyright: ignore[reportMissingImports]
 from pathlib import Path
 
 # Add agent directory to path for logger import
 sys.path.insert(0, str(Path(__file__).parent))
 from logger import log
+
+# ASI.Cloud API Configuration
+ASI_API_KEY = os.getenv("ASI_API_KEY", "sk_f19e4e7f7c0e460e9ebeed7132a13fedcca7c7d7133a482ca0636e2850751d2b")
+ASI_API_URL = os.getenv("ASI_API_URL", "https://api.asi.cloud/v1/chat/completions")
 
 
 class AttackMessage(Model):
@@ -24,6 +29,85 @@ class ResponseMessage(Model):
 
 
 SECRET_KEY = "fetch_ai_2024"
+
+
+async def analyze_attack_with_asi(payload: str) -> dict:
+    """
+    Use ASI.Cloud API to analyze incoming attack payloads and classify them.
+    
+    Args:
+        payload: The attack payload to analyze
+        
+    Returns:
+        dict: Analysis results with attack_type, threat_level, and defensive_recommendation
+    """
+    prompt = f"""You are a cybersecurity expert analyzing an attack payload.
+    
+Attack Payload: {payload}
+
+Analyze this attack and provide:
+1. Attack type (SQL Injection, XSS, Command Injection, etc.)
+2. Threat level (LOW, MEDIUM, HIGH, CRITICAL)
+3. Brief defensive recommendation
+
+Return JSON format: {{"attack_type": "string", "threat_level": "string", "defensive_recommendation": "string"}}"""
+    
+    try:
+        log("ASI.Cloud", "Analyzing attack payload...", "🧠", "info")
+        
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.post(
+                ASI_API_URL,
+                headers={
+                    "Authorization": f"Bearer {ASI_API_KEY}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": "gpt-4",
+                    "messages": [
+                        {
+                            "role": "user",
+                            "content": prompt
+                        }
+                    ],
+                    "max_tokens": 200,
+                    "temperature": 0.3,
+                },
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                analysis_text = data.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
+                
+                if analysis_text:
+                    log("ASI.Cloud", f"Attack analysis received", "🧠", "info")
+                    # Try to parse JSON from response
+                    import json
+                    try:
+                        # Extract JSON from markdown code blocks if present
+                        if "```json" in analysis_text:
+                            analysis_text = analysis_text.split("```json")[1].split("```")[0].strip()
+                        elif "```" in analysis_text:
+                            analysis_text = analysis_text.split("```")[1].split("```")[0].strip()
+                        analysis = json.loads(analysis_text)
+                        return analysis
+                    except:
+                        # Fallback: return default analysis
+                        pass
+                        
+    except httpx.TimeoutException:
+        log("ASI.Cloud", "API request timeout, using default attack classification", "🧠", "info")
+    except httpx.RequestError as e:
+        log("ASI.Cloud", f"API request failed: {str(e)}, using default attack classification", "🧠", "info")
+    except Exception as e:
+        log("ASI.Cloud", f"Unexpected error: {str(e)}, using default attack classification", "🧠", "info")
+    
+    # Default fallback analysis
+    return {
+        "attack_type": "Unknown",
+        "threat_level": "MEDIUM",
+        "defensive_recommendation": "Implement input validation and sanitization."
+    }
 
 
 def create_target_agent(port: int = None, judge_address: str = None) -> Agent:
@@ -65,6 +149,15 @@ def create_target_agent(port: int = None, judge_address: str = None) -> Agent:
     async def handle_attack(ctx: Context, sender: str, msg: AttackMessage):
         ctx.logger.info(f"Received attack from {sender}: '{msg.payload}'")
         log("Target", f"Processing input: '{msg.payload}'...", "🎯", "info")
+
+        # Use ASI API to analyze the attack
+        attack_analysis = await analyze_attack_with_asi(msg.payload)
+        attack_type = attack_analysis.get("attack_type", "Unknown")
+        threat_level = attack_analysis.get("threat_level", "MEDIUM")
+        recommendation = attack_analysis.get("defensive_recommendation", "Implement input validation.")
+        
+        log("Target", f"ASI Analysis: {attack_type} detected (Threat: {threat_level})", "🧠", "info")
+        log("Target", f"Defensive recommendation: {recommendation}", "🧠", "info")
 
         if msg.payload == SECRET_KEY:
             response = ResponseMessage(

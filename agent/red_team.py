@@ -179,12 +179,9 @@ def create_red_team_agent(
         
         # Read known exploits from Unibase on startup
         try:
-            # Try to get messages from MCP if available
-            # Note: MCP integration requires MCP client - for now using file fallback
-            mcp_messages = []  # Would be populated by MCP call if available
-            use_mcp = False  # Set to True when MCP client is properly integrated
-            
-            state["known_exploits"] = await get_known_exploits(use_mcp=use_mcp, mcp_messages=mcp_messages)
+            # Membase will be used automatically if USE_MEMBASE=true in environment
+            # Pass None to auto-detect based on MEMBASE_ENABLED
+            state["known_exploits"] = await get_known_exploits(use_mcp=None, mcp_messages=None)
             
             if state["known_exploits"]:
                 log("Unibase", f"Loaded {len(state['known_exploits'])} known exploits from Hivemind Memory", "💾", "info")
@@ -241,13 +238,9 @@ def create_red_team_agent(
             successful_payload = state.get("last_payload")
             if successful_payload and successful_payload not in state["known_exploits"]:
                 try:
-                    # Save exploit (will use MCP if available, otherwise file fallback)
-                    use_mcp = False  # Set to True when MCP client is properly integrated
-                    await save_exploit(successful_payload, state["known_exploits"], use_mcp=use_mcp)
-                    
-                    # If using MCP, the caller should also invoke mcp_membase_save_message
-                    # formatted_message = format_exploit_message(successful_payload)
-                    # mcp_membase_save_message(formatted_message, "assistant")
+                    # Save exploit (will use Membase if enabled, otherwise file fallback)
+                    # Pass None to auto-detect based on MEMBASE_ENABLED
+                    await save_exploit(successful_payload, state["known_exploits"], use_mcp=None)
                 except Exception as e:
                     ctx.logger.warning(f"Failed to save exploit to Unibase: {str(e)}")
                     log("Unibase", f"Error saving exploit: {str(e)}", "💾", "info")

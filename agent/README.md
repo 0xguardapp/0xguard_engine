@@ -81,6 +81,10 @@ python3.11 test_full_integration.py
   - Set `ASI_API_KEY` environment variable
 - **Agentverse** - For agent registration and discovery
   - Set `AGENTVERSE_KEY` environment variable
+- **Membase** - For decentralized persistent memory storage
+  - Install: `pip install git+https://github.com/unibaseio/membase.git`
+  - Set `USE_MEMBASE=true` and configure `MEMBASE_ID`, `MEMBASE_ACCOUNT`, `MEMBASE_SECRET_KEY`
+  - Falls back to file-based storage if not configured
 
 ## 🚀 Quick Start
 
@@ -89,6 +93,9 @@ python3.11 test_full_integration.py
 ```bash
 cd agent
 python3.11 -m pip install "uagents>=0.22.10" "httpx>=0.25.0"
+
+# Optional: Install Membase for persistent memory storage
+pip install git+https://github.com/unibaseio/membase.git
 ```
 
 ### 2. Configure Environment
@@ -161,6 +168,12 @@ ASI_API_KEY=your_asi_api_key_here
 
 # Optional: Agentverse Registration
 AGENTVERSE_KEY=your_agentverse_key_here
+
+# Optional: Membase Configuration (for persistent memory)
+USE_MEMBASE=false
+MEMBASE_ID=0xguard_agent
+MEMBASE_ACCOUNT=default
+MEMBASE_SECRET_KEY=your_membase_secret_key
 ```
 
 ## 📚 Documentation
@@ -199,6 +212,7 @@ AGENTVERSE_KEY=your_agentverse_key_here
 ### External Services
 - **ASI.Cloud API**: [https://asi.cloud/](https://asi.cloud/) - AI-powered attack generation
 - **Agentverse**: [https://agentverse.ai/](https://agentverse.ai/) - Agent registration and discovery
+- **Membase/Unibase**: [https://openos-labs.gitbook.io/unibase-docs/](https://openos-labs.gitbook.io/unibase-docs/) - Decentralized persistent memory storage
 
 ### Project Documentation
 - **Main Repository**: [GitHub Repository URL]

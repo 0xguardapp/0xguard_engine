@@ -1,16 +1,18 @@
 """
 Unibase integration module for persistent exploit memory.
-Uses Membase MCP to read and write known exploits.
-Falls back to file-based storage if MCP is unavailable.
+Uses Membase to read and write known exploits.
+Falls back to file-based storage if Membase is unavailable.
 """
 import sys
 import json
+import os
 from pathlib import Path
 from datetime import datetime
 
 # Add agent directory to path for logger import
 sys.path.insert(0, str(Path(__file__).parent))
 from logger import log
+from mcp_helper import get_mcp_messages, save_mcp_message, MEMBASE_ENABLED
 
 # Message format prefix for exploits
 EXPLOIT_PREFIX = "EXPLOIT:"
@@ -57,13 +59,13 @@ def save_exploits_to_file(exploits: set) -> bool:
         return False
 
 
-async def get_known_exploits(use_mcp: bool = False, mcp_messages: list = None) -> set:
+async def get_known_exploits(use_mcp: bool = None, mcp_messages: list = None) -> set:
     """
-    Retrieve known exploits from Unibase via Membase MCP or fallback file.
+    Retrieve known exploits from Unibase via Membase or fallback file.
     
     Args:
-        use_mcp: Whether to use MCP (requires mcp_messages parameter)
-        mcp_messages: List of messages from MCP (if use_mcp is True)
+        use_mcp: Whether to use Membase (auto-detected if None based on MEMBASE_ENABLED)
+        mcp_messages: List of messages from Membase (if use_mcp is True, will fetch if None)
         
     Returns:
         set: Set of known exploit strings
@@ -71,12 +73,27 @@ async def get_known_exploits(use_mcp: bool = False, mcp_messages: list = None) -
     known_exploits = set()
     
     try:
+        # Auto-detect Membase usage if not specified
+        if use_mcp is None:
+            use_mcp = MEMBASE_ENABLED
+        
         log("Unibase", "Querying Hivemind Memory for known exploits...", "💾", "info")
         
-        if use_mcp and mcp_messages is not None:
-            # Parse exploits from MCP messages
-            known_exploits = parse_exploits_from_messages(mcp_messages)
-            log("Unibase", f"Loaded {len(known_exploits)} exploits from MCP", "💾", "info")
+        if use_mcp:
+            try:
+                # Fetch messages from Membase if not provided
+                if mcp_messages is None:
+                    mcp_messages = await get_mcp_messages(recent_n=100)
+                
+                # Parse exploits from Membase messages
+                known_exploits = parse_exploits_from_messages(mcp_messages)
+                log("Unibase", f"Loaded {len(known_exploits)} exploits from Membase", "💾", "info")
+            except Exception as e:
+                log("Unibase", f"Error reading from Membase: {str(e)}, falling back to file storage", "💾", "info")
+                # Fallback to file-based storage
+                known_exploits = load_exploits_from_file()
+                if known_exploits:
+                    log("Unibase", f"Loaded {len(known_exploits)} exploits from file storage", "💾", "info")
         else:
             # Fallback to file-based storage
             known_exploits = load_exploits_from_file()
@@ -134,7 +151,7 @@ def format_exploit_message(exploit_string: str) -> str:
     return f"{EXPLOIT_PREFIX} {exploit_string}"
 
 
-async def save_bounty_token(recipient_address: str, exploit_string: str, use_mcp: bool = False) -> str:
+async def save_bounty_token(recipient_address: str, exploit_string: str, use_mcp: bool = None) -> str:
     """
     Save a bounty token transaction to Unibase via Membase MCP or fallback file.
     Simulates gasless transaction using Unibase account abstraction.
@@ -169,12 +186,24 @@ async def save_bounty_token(recipient_address: str, exploit_string: str, use_mcp
         # Format message for Unibase
         bounty_message = f"BOUNTY_TOKEN: {recipient_address} | {exploit_string} | {timestamp} | {tx_hash}"
         
+        # Auto-detect Membase usage if not specified
+        if use_mcp is None:
+            use_mcp = MEMBASE_ENABLED
+        
         log("Unibase", f"Writing new vector to Hivemind Memory...", "💾", "info")
         
         if use_mcp:
-            # MCP save_message call should be made in judge.py
-            # where MCP tools are available
-            log("Unibase", f"Bounty token saved via MCP (caller should invoke mcp_membase_save_message)", "💾", "info")
+            try:
+                # Save to Membase
+                success = await save_mcp_message(bounty_message, msg_type="assistant", conversation_id="0xguard_bounties")
+                if success:
+                    log("Unibase", f"Bounty token saved to Membase", "💾", "info")
+                else:
+                    log("Unibase", "Failed to save to Membase, falling back to file storage", "💾", "info")
+                    save_bounty_to_file(bounty_data)
+            except Exception as e:
+                log("Unibase", f"Error saving to Membase: {str(e)}, falling back to file storage", "💾", "info")
+                save_bounty_to_file(bounty_data)
         else:
             # Fallback to file storage
             save_bounty_to_file(bounty_data)
@@ -224,19 +253,23 @@ def save_bounty_to_file(bounty_data: dict) -> bool:
         return False
 
 
-async def save_exploit(exploit_string: str, known_exploits: set, use_mcp: bool = False) -> bool:
+async def save_exploit(exploit_string: str, known_exploits: set, use_mcp: bool = None) -> bool:
     """
-    Save a new exploit to Unibase via Membase MCP or fallback file.
+    Save a new exploit to Unibase via Membase or fallback file.
     
     Args:
         exploit_string: The exploit payload to save
         known_exploits: Current set of known exploits (will be updated)
-        use_mcp: Whether to use MCP (requires MCP context in caller)
+        use_mcp: Whether to use Membase (auto-detected if None based on MEMBASE_ENABLED)
         
     Returns:
         bool: True if saved successfully, False otherwise
     """
     try:
+        # Auto-detect Membase usage if not specified
+        if use_mcp is None:
+            use_mcp = MEMBASE_ENABLED
+        
         formatted_message = format_exploit_message(exploit_string)
         log("Unibase", f"Writing new vector to Hivemind Memory: {exploit_string}", "💾", "info")
         
@@ -244,9 +277,17 @@ async def save_exploit(exploit_string: str, known_exploits: set, use_mcp: bool =
         known_exploits.add(exploit_string)
         
         if use_mcp:
-            # MCP save_message call should be made in red_team.py
-            # where MCP tools are available
-            log("Unibase", "Exploit saved via MCP (caller should invoke mcp_membase_save_message)", "💾", "info")
+            try:
+                # Save to Membase
+                success = await save_mcp_message(formatted_message, msg_type="assistant")
+                if success:
+                    log("Unibase", "Exploit saved to Membase", "💾", "info")
+                else:
+                    log("Unibase", "Failed to save to Membase, falling back to file storage", "💾", "info")
+                    save_exploits_to_file(known_exploits)
+            except Exception as e:
+                log("Unibase", f"Error saving to Membase: {str(e)}, falling back to file storage", "💾", "info")
+                save_exploits_to_file(known_exploits)
         else:
             # Fallback to file storage
             save_exploits_to_file(known_exploits)

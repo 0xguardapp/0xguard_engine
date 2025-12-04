@@ -11,6 +11,7 @@ from uagents_core.contrib.protocols.chat import (  # pyright: ignore[reportMissi
 )
 import sys
 import os
+import httpx  # pyright: ignore[reportMissingImports]
 from pathlib import Path
 from datetime import datetime
 
@@ -19,6 +20,10 @@ sys.path.insert(0, str(Path(__file__).parent))
 from logger import log
 from unibase import save_bounty_token
 from midnight_client import submit_audit_proof, generate_audit_id
+
+# ASI.Cloud API Configuration
+ASI_API_KEY = os.getenv("ASI_API_KEY", "sk_f19e4e7f7c0e460e9ebeed7132a13fedcca7c7d7133a482ca0636e2850751d2b")
+ASI_API_URL = os.getenv("ASI_API_URL", "https://api.asi.cloud/v1/chat/completions")
 
 # Import message models - define locally to avoid circular imports
 class ResponseMessage(Model):
@@ -32,6 +37,87 @@ class AttackMessage(Model):
 
 # SECRET_KEY from target (hardcoded for now to avoid import)
 SECRET_KEY = "fetch_ai_2024"
+
+
+async def analyze_vulnerability_with_asi(exploit_payload: str, response_message: str) -> dict:
+    """
+    Use ASI.Cloud API to analyze vulnerability severity and generate risk assessment.
+    
+    Args:
+        exploit_payload: The exploit payload that triggered the vulnerability
+        response_message: The response message from the target
+        
+    Returns:
+        dict: Analysis results with risk_score, severity, and recommendations
+    """
+    prompt = f"""You are a cybersecurity expert analyzing a vulnerability. 
+    
+Exploit Payload: {exploit_payload}
+Target Response: {response_message}
+
+Analyze this vulnerability and provide:
+1. Risk score (0-100)
+2. Severity level (LOW, MEDIUM, HIGH, CRITICAL)
+3. Brief recommendation
+
+Return JSON format: {{"risk_score": number, "severity": "string", "recommendation": "string"}}"""
+    
+    try:
+        log("ASI.Cloud", "Analyzing vulnerability severity...", "🧠", "info")
+        
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.post(
+                ASI_API_URL,
+                headers={
+                    "Authorization": f"Bearer {ASI_API_KEY}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": "gpt-4",
+                    "messages": [
+                        {
+                            "role": "user",
+                            "content": prompt
+                        }
+                    ],
+                    "max_tokens": 200,
+                    "temperature": 0.3,
+                },
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                analysis_text = data.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
+                
+                if analysis_text:
+                    log("ASI.Cloud", f"Vulnerability analysis received", "🧠", "info")
+                    # Try to parse JSON from response
+                    import json
+                    try:
+                        # Extract JSON from markdown code blocks if present
+                        if "```json" in analysis_text:
+                            analysis_text = analysis_text.split("```json")[1].split("```")[0].strip()
+                        elif "```" in analysis_text:
+                            analysis_text = analysis_text.split("```")[1].split("```")[0].strip()
+                        analysis = json.loads(analysis_text)
+                        return analysis
+                    except:
+                        # Fallback: return default analysis
+                        pass
+                        
+    except httpx.TimeoutException:
+        log("ASI.Cloud", "API request timeout, using default risk assessment", "🧠", "info")
+    except httpx.RequestError as e:
+        log("ASI.Cloud", f"API request failed: {str(e)}, using default risk assessment", "🧠", "info")
+    except Exception as e:
+        log("ASI.Cloud", f"Unexpected error: {str(e)}, using default risk assessment", "🧠", "info")
+    
+    # Default fallback analysis
+    return {
+        "risk_score": 98,
+        "severity": "CRITICAL",
+        "recommendation": "Immediate remediation required. Secret key exposure detected."
+    }
 
 
 def create_judge_agent(port: int = None) -> Agent:
@@ -133,10 +219,16 @@ def create_judge_agent(port: int = None) -> Agent:
                 exploit_payload = SECRET_KEY
             
             ctx.logger.info("CRITICAL VULNERABILITY CONFIRMED!")
-            log("Judge", "CRITICAL VULNERABILITY CONFIRMED. Risk Score: 98/100.", "⚖️", "vulnerability", is_vulnerability=True)
             
-            # Calculate risk score (98 for SECRET_KEY compromise)
-            risk_score = 98
+            # Use ASI API to analyze vulnerability severity
+            vulnerability_analysis = await analyze_vulnerability_with_asi(exploit_payload, msg.message)
+            risk_score = vulnerability_analysis.get("risk_score", 98)
+            severity = vulnerability_analysis.get("severity", "CRITICAL")
+            recommendation = vulnerability_analysis.get("recommendation", "Immediate remediation required.")
+            
+            log("Judge", f"CRITICAL VULNERABILITY CONFIRMED. Risk Score: {risk_score}/100. Severity: {severity}", "⚖️", "vulnerability", is_vulnerability=True)
+            log("Judge", f"ASI Analysis: {recommendation}", "🧠", "info")
+            
             threshold = 90
             
             # Generate audit_id
@@ -165,10 +257,11 @@ def create_judge_agent(port: int = None) -> Agent:
             
             # Trigger Unibase transaction for bounty token
             try:
+                # Pass None to auto-detect Membase usage based on MEMBASE_ENABLED
                 transaction_hash = await save_bounty_token(
                     recipient_address=red_team_address,
                     exploit_string=exploit_payload,
-                    use_mcp=False
+                    use_mcp=None
                 )
                 
                 state["bounties_awarded"] += 1
