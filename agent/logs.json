@@ -1,6 +1,6 @@
 [
   {
-    "timestamp": "00:17:37",
+    "timestamp": "14:15:19",
     "actor": "Test",
     "icon": "\ud83d\udd35",
     "message": "Info message",
@@ -8,7 +8,7 @@
     "is_vulnerability": false
   },
   {
-    "timestamp": "00:17:37",
+    "timestamp": "14:15:19",
     "actor": "Test",
     "icon": "\ud83d\udd34",
     "message": "Attack message",
@@ -16,7 +16,7 @@
     "is_vulnerability": false
   },
   {
-    "timestamp": "00:17:37",
+    "timestamp": "14:15:19",
     "actor": "Test",
     "icon": "\u26a0\ufe0f",
     "message": "Vulnerability found",
@@ -24,7 +24,7 @@
     "is_vulnerability": true
   },
   {
-    "timestamp": "00:17:37",
+    "timestamp": "14:15:19",
     "actor": "Unibase",
     "icon": "\ud83d\udcbe",
     "message": "Querying Hivemind Memory for known exploits...",
@@ -32,7 +32,7 @@
     "is_vulnerability": false
   },
   {
-    "timestamp": "00:17:37",
+    "timestamp": "14:15:19",
     "actor": "Unibase",
     "icon": "\ud83d\udcbe",
     "message": "Loaded 2 exploits from file storage",
@@ -40,7 +40,7 @@
     "is_vulnerability": false
   },
   {
-    "timestamp": "00:17:37",
+    "timestamp": "14:15:19",
     "actor": "Unibase",
     "icon": "\ud83d\udcbe",
     "message": "Writing new vector to Hivemind Memory: test_exploit_' OR '1'='1",
@@ -48,7 +48,7 @@
     "is_vulnerability": false
   },
   {
-    "timestamp": "00:17:37",
+    "timestamp": "14:15:19",
     "actor": "Unibase",
     "icon": "\ud83d\udcbe",
     "message": "Exploit saved to file storage",
@@ -56,7 +56,7 @@
     "is_vulnerability": false
   },
   {
-    "timestamp": "00:17:37",
+    "timestamp": "14:15:19",
     "actor": "Unibase",
     "icon": "\ud83d\udcbe",
     "message": "Success. New exploit saved to Hivemind Memory.",
@@ -64,7 +64,7 @@
     "is_vulnerability": false
   },
   {
-    "timestamp": "00:17:37",
+    "timestamp": "14:15:19",
     "actor": "Unibase",
     "icon": "\ud83d\udcbe",
     "message": "Querying Hivemind Memory for known exploits...",
@@ -72,7 +72,7 @@
     "is_vulnerability": false
   },
   {
-    "timestamp": "00:17:37",
+    "timestamp": "14:15:19",
     "actor": "Unibase",
     "icon": "\ud83d\udcbe",
     "message": "Loaded 3 exploits from file storage",
@@ -80,7 +80,7 @@
     "is_vulnerability": false
   },
   {
-    "timestamp": "00:17:37",
+    "timestamp": "14:15:19",
     "actor": "Unibase",
     "icon": "\ud83d\udcbe",
     "message": "Writing new vector to Hivemind Memory...",
@@ -88,7 +88,7 @@
     "is_vulnerability": false
   },
   {
-    "timestamp": "00:17:37",
+    "timestamp": "14:15:19",
     "actor": "Unibase",
     "icon": "\ud83d\udcbe",
     "message": "Bounty token saved to file storage",
@@ -96,15 +96,15 @@
     "is_vulnerability": false
   },
   {
-    "timestamp": "00:17:37",
+    "timestamp": "14:15:19",
     "actor": "Unibase",
     "icon": "\ud83d\udcbe",
-    "message": "Success. Transaction: 0xa9c8c34f5c64b1c8",
+    "message": "Success. Transaction: 0x52c2edf65efddb0f",
     "type": "info",
     "is_vulnerability": false
   },
   {
-    "timestamp": "00:17:37",
+    "timestamp": "14:15:19",
     "actor": "Midnight",
     "icon": "\ud83d\udee1\ufe0f",
     "message": "Generating Zero-Knowledge Proof of Audit...",
@@ -112,15 +112,15 @@
     "is_vulnerability": false
   },
   {
-    "timestamp": "00:17:37",
+    "timestamp": "14:15:19",
     "actor": "Midnight",
     "icon": "\ud83d\udee1\ufe0f",
-    "message": "Proof Minted. Hash: zk_6eac9fc156870e3f (Verified)",
+    "message": "Proof Minted. Hash: zk_4233b643bea9410c (Verified)",
     "type": "info",
     "is_vulnerability": false
   },
   {
-    "timestamp": "00:17:37",
+    "timestamp": "14:15:19",
     "actor": "ASI.Cloud",
     "icon": "\ud83e\udde0",
     "message": "Generating SQL injection variant based on previous failure...",
@@ -128,23 +128,23 @@
     "is_vulnerability": false
   },
   {
-    "timestamp": "00:17:38",
+    "timestamp": "14:15:19",
     "actor": "ASI.Cloud",
     "icon": "\ud83e\udde0",
-    "message": "API request failed: [Errno 11001] getaddrinfo failed, using fallback",
+    "message": "API request failed: [Errno 8] nodename nor servname provided, or not known, using fallback",
     "type": "info",
     "is_vulnerability": false
   },
   {
-    "timestamp": "00:17:38",
+    "timestamp": "14:15:19",
     "actor": "ASI.Cloud",
     "icon": "\ud83e\udde0",
-    "message": "Using fallback payload: admin' --",
+    "message": "Using fallback payload: ' UNION SELECT NULL--",
     "type": "info",
     "is_vulnerability": false
   },
   {
-    "timestamp": "00:17:38",
+    "timestamp": "14:15:20",
     "actor": "ASI.Cloud",
     "icon": "\ud83e\udde0",
     "message": "Generating SQL injection variant based on previous failure...",
@@ -152,146 +152,18 @@
     "is_vulnerability": false
   },
   {
-    "timestamp": "00:17:39",
+    "timestamp": "14:15:20",
     "actor": "ASI.Cloud",
     "icon": "\ud83e\udde0",
-    "message": "API request failed: [Errno 11001] getaddrinfo failed, using fallback",
+    "message": "API request failed: [Errno 8] nodename nor servname provided, or not known, using fallback",
     "type": "info",
     "is_vulnerability": false
   },
   {
-    "timestamp": "00:17:39",
+    "timestamp": "14:15:20",
     "actor": "ASI.Cloud",
     "icon": "\ud83e\udde0",
     "message": "Using fallback payload: admin' --",
-    "type": "info",
-    "is_vulnerability": false
-  },
-  {
-    "timestamp": "00:20:47",
-    "actor": "Unibase",
-    "icon": "\ud83d\udcbe",
-    "message": "Writing new vector to Hivemind Memory...",
-    "type": "info",
-    "is_vulnerability": false
-  },
-  {
-    "timestamp": "00:20:47",
-    "actor": "Unibase",
-    "icon": "\ud83d\udcbe",
-    "message": "Bounty token saved to file storage",
-    "type": "info",
-    "is_vulnerability": false
-  },
-  {
-    "timestamp": "00:20:47",
-    "actor": "Unibase",
-    "icon": "\ud83d\udcbe",
-    "message": "Success. Transaction: 0x05ccea971a58cc48",
-    "type": "info",
-    "is_vulnerability": false
-  },
-  {
-    "timestamp": "00:20:47",
-    "actor": "Midnight",
-    "icon": "\ud83d\udee1\ufe0f",
-    "message": "Generating Zero-Knowledge Proof of Audit...",
-    "type": "info",
-    "is_vulnerability": false
-  },
-  {
-    "timestamp": "00:20:47",
-    "actor": "Midnight",
-    "icon": "\ud83d\udee1\ufe0f",
-    "message": "Proof Minted. Hash: zk_c469ce659bb81086 (Verified)",
-    "type": "info",
-    "is_vulnerability": false
-  },
-  {
-    "timestamp": "00:20:47",
-    "actor": "Unibase",
-    "icon": "\ud83d\udcbe",
-    "message": "Writing new vector to Hivemind Memory: fetch_ai_2024",
-    "type": "info",
-    "is_vulnerability": false
-  },
-  {
-    "timestamp": "00:20:47",
-    "actor": "Unibase",
-    "icon": "\ud83d\udcbe",
-    "message": "Exploit saved to file storage",
-    "type": "info",
-    "is_vulnerability": false
-  },
-  {
-    "timestamp": "00:20:47",
-    "actor": "Unibase",
-    "icon": "\ud83d\udcbe",
-    "message": "Success. New exploit saved to Hivemind Memory.",
-    "type": "info",
-    "is_vulnerability": false
-  },
-  {
-    "timestamp": "00:20:47",
-    "actor": "Unibase",
-    "icon": "\ud83d\udcbe",
-    "message": "Writing new vector to Hivemind Memory...",
-    "type": "info",
-    "is_vulnerability": false
-  },
-  {
-    "timestamp": "00:20:47",
-    "actor": "Unibase",
-    "icon": "\ud83d\udcbe",
-    "message": "Bounty token saved to file storage",
-    "type": "info",
-    "is_vulnerability": false
-  },
-  {
-    "timestamp": "00:20:47",
-    "actor": "Unibase",
-    "icon": "\ud83d\udcbe",
-    "message": "Success. Transaction: 0x58ef6a19ef8bbd3d",
-    "type": "info",
-    "is_vulnerability": false
-  },
-  {
-    "timestamp": "00:20:47",
-    "actor": "Midnight",
-    "icon": "\ud83d\udee1\ufe0f",
-    "message": "Generating Zero-Knowledge Proof of Audit...",
-    "type": "info",
-    "is_vulnerability": false
-  },
-  {
-    "timestamp": "00:20:47",
-    "actor": "Midnight",
-    "icon": "\ud83d\udee1\ufe0f",
-    "message": "Proof Minted. Hash: zk_fc404f1a0f12ac57 (Verified)",
-    "type": "info",
-    "is_vulnerability": false
-  },
-  {
-    "timestamp": "00:20:47",
-    "actor": "Unibase",
-    "icon": "\ud83d\udcbe",
-    "message": "Writing new vector to Hivemind Memory: fetch_ai_2024",
-    "type": "info",
-    "is_vulnerability": false
-  },
-  {
-    "timestamp": "00:20:47",
-    "actor": "Unibase",
-    "icon": "\ud83d\udcbe",
-    "message": "Exploit saved to file storage",
-    "type": "info",
-    "is_vulnerability": false
-  },
-  {
-    "timestamp": "00:20:47",
-    "actor": "Unibase",
-    "icon": "\ud83d\udcbe",
-    "message": "Success. New exploit saved to Hivemind Memory.",
     "type": "info",
     "is_vulnerability": false
   }
