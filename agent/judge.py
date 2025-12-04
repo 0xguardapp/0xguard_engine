@@ -9,6 +9,10 @@ from uagents_core.contrib.protocols.chat import (  # pyright: ignore[reportMissi
     TextContent,
     chat_protocol_spec
 )
+from uagents_core.utils.registration import (  # pyright: ignore[reportMissingImports]
+    register_chat_agent,
+    RegistrationRequestCredentials,
+)
 import sys
 import os
 import httpx  # pyright: ignore[reportMissingImports]
@@ -20,10 +24,19 @@ sys.path.insert(0, str(Path(__file__).parent))
 from logger import log
 from unibase import save_bounty_token
 from midnight_client import submit_audit_proof, generate_audit_id
+from proof_verifier import (
+    verify_audit_proof,
+    batch_verify,
+    get_verification_proof,
+    ProofVerificationResult
+)
 
 # ASI.Cloud API Configuration
 ASI_API_KEY = os.getenv("ASI_API_KEY", "sk_f19e4e7f7c0e460e9ebeed7132a13fedcca7c7d7133a482ca0636e2850751d2b")
 ASI_API_URL = os.getenv("ASI_API_URL", "https://api.asi.cloud/v1/chat/completions")
+
+# AgentVerse API Configuration
+AGENTVERSE_KEY = os.getenv("AGENTVERSE_KEY", "eyJhbGciOiJSUzI1NiJ9.eyJleHAiOjE3Njc0NjQ3NzQsImlhdCI6MTc2NDg3Mjc3NCwiaXNzIjoiZmV0Y2guYWkiLCJqdGkiOiIzMDExMjJiNWNiODkwN2I1YTBjMzRjMDQiLCJwayI6IkF1NCtIWjYxUlM2K283RTFkak1RYnlYWWJQRVNNWFVFZmZ5ZUhGNVE5NlBUIiwic2NvcGUiOiJhdiIsInN1YiI6IjVjMDdiNDQxZmM5ZTk1MDFlM2I0Y2FjYWJkNmM5MTJhYWIxMTM3ZTY5YWIxODk0YSJ9.ko8LHxDG3CB6CBlHX_OYq6DmOB9dCAcpBLywMCatEOzRXwdF1LiwnuI9AVOwpeqdmtqlispQgbNwmT3cY31clq32xmX3fn4Py_eLR4YDswdogJ6_v1rRNF_d6I4H8wgJDx4Tx31ZG9hrYiXHK6btY6ltg_JsfGxAR7o25iRzM3lHmwjFsL3skkfPf-XPgUZc_Nc5cGj93cEQ-NXV3YvYrbGkyn7fBDz_REdvepykjLOHMsLCXHBYf5lpYklQGCQBSZU1QK9lTcu5ZQvZkYY0EbwYqx0hTtiWq77uYU6hDhbHvSwKtGzv9xwdr9RjVcfxKkUBuidxrbK842FxvcLzrg")
 
 # Import message models - define locally to avoid circular imports
 class ResponseMessage(Model):
@@ -172,6 +185,7 @@ def create_judge_agent(port: int = None) -> Agent:
         "attack_flow": [],  # Track attack sequence: [(red_team_address, payload, timestamp)]
         "bounties_awarded": 0,
         "audit_proofs": {},  # audit_id -> proof_hash
+        "verified_proofs": {},  # proof_id -> ProofVerificationResult
     }
 
     @judge.on_event("startup")
@@ -179,6 +193,30 @@ def create_judge_agent(port: int = None) -> Agent:
         ctx.logger.info(f"Judge Agent started: {judge.address}")
         log("Judge", f"Judge Agent started: {judge.address}", "⚖️", "info")
         log("Judge", "Monitoring Red Team and Target communications...", "⚖️", "info")
+        
+        # Register with Agentverse
+        try:
+            agentverse_key = os.environ.get("AGENTVERSE_KEY") or AGENTVERSE_KEY
+            agent_seed_phrase = os.environ.get("AGENT_SEED_PHRASE") or agent_seed
+            endpoint_url = f"http://{agent_ip}:{agent_port}/submit"
+            
+            if agentverse_key:
+                register_chat_agent(
+                    "judge",
+                    endpoint_url,
+                    active=True,
+                    credentials=RegistrationRequestCredentials(
+                        agentverse_api_key=agentverse_key,
+                        agent_seed_phrase=agent_seed_phrase,
+                    ),
+                )
+                ctx.logger.info(f"Judge Agent registered with Agentverse at {endpoint_url}")
+                log("Judge", f"Registered with Agentverse: {endpoint_url}", "⚖️", "info")
+            else:
+                ctx.logger.warning("AGENTVERSE_KEY not set, skipping Agentverse registration")
+        except Exception as e:
+            ctx.logger.error(f"Failed to register with Agentverse: {str(e)}")
+            log("Judge", f"Agentverse registration error: {str(e)}", "⚖️", "info")
 
     @judge.on_message(model=AttackMessage)
     async def handle_attack_message(ctx: Context, sender: str, msg: AttackMessage):
@@ -284,6 +322,58 @@ def create_judge_agent(port: int = None) -> Agent:
                 log("Judge", f"Error saving bounty token: {str(e)}", "⚖️", "info")
         else:
             log("Judge", f"Response analyzed: {msg.status} - No vulnerability detected.", "⚖️", "info")
+
+    # ============================================================================
+    # Proof Verification Methods
+    # ============================================================================
+    
+    @judge.on_query()
+    async def verify_audit_proof_handler(ctx: Context, query: dict):
+        """
+        Query handler for proof verification.
+        Query format: {"method": "verifyAuditProof", "proofId": "...", "auditorId": "..."}
+        """
+        if query.get("method") == "verifyAuditProof":
+            proof_id = query.get("proofId")
+            auditor_id = query.get("auditorId")
+            
+            if not proof_id:
+                return {"error": "proofId is required"}
+            
+            result = await verify_audit_proof(proof_id, auditor_id)
+            state["verified_proofs"][proof_id] = result.to_dict()
+            
+            return result.to_dict()
+        
+        elif query.get("method") == "batchVerify":
+            proof_ids = query.get("proofIds", [])
+            auditor_id = query.get("auditorId")
+            
+            if not proof_ids:
+                return {"error": "proofIds array is required"}
+            
+            results = await batch_verify(proof_ids, auditor_id)
+            return [r.to_dict() for r in results]
+        
+        elif query.get("method") == "getVerificationProof":
+            proof_id = query.get("proofId")
+            format_type = query.get("format", "json")
+            
+            if not proof_id:
+                return {"error": "proofId is required"}
+            
+            proof = await get_verification_proof(proof_id, format_type)
+            if proof:
+                return {"proof": proof, "format": format_type}
+            else:
+                return {"error": "Proof not found"}
+        
+        return {"error": "Unknown method"}
+    
+    # Add verification methods as class methods for direct access
+    judge.verify_audit_proof = lambda proof_id, auditor_id=None: verify_audit_proof(proof_id, auditor_id)
+    judge.batch_verify = lambda proof_ids, auditor_id=None: batch_verify(proof_ids, auditor_id)
+    judge.get_verification_proof = lambda proof_id, format="json": get_verification_proof(proof_id, format)
 
     return judge
 

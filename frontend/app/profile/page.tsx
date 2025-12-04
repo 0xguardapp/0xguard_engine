@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Header from '@/components/Header';
+import { AuthGuard } from '@/components/AuthGuard';
 import DashboardLayout from '@/components/DashboardLayout';
 import Image from 'next/image';
 import { useWallet } from '@/hooks/useWallet';
@@ -63,7 +64,7 @@ export default function ProfilePage() {
   };
 
   return (
-    <>
+    <AuthGuard>
       <Header />
       <DashboardLayout>
         <div className="space-y-6">
@@ -194,6 +195,6 @@ export default function ProfilePage() {
           </div>
         </div>
       </DashboardLayout>
-    </>
+    </AuthGuard>
   );
 }

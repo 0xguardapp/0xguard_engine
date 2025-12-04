@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import Header from '@/components/Header';
+import { AuthGuard } from '@/components/AuthGuard';
 import DashboardLayout, { useSearch } from '@/components/DashboardLayout';
 import AuditList from '@/components/AuditList';
 import NewAuditModal from '@/components/NewAuditModal';
@@ -72,11 +73,11 @@ function HomeContent() {
 
 export default function Home() {
   return (
-    <>
+    <AuthGuard>
       <Header />
       <DashboardLayout>
         <HomeContent />
       </DashboardLayout>
-    </>
+    </AuthGuard>
   );
 }

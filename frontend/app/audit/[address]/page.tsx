@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Header from '@/components/Header';
+import { AuthGuard } from '@/components/AuthGuard';
 import StatusBar from '@/components/StatusBar';
 import NewAuditModal from '@/components/NewAuditModal';
 import { RedTeamStatus } from '@/components/RedTeamStatus';
@@ -63,8 +64,9 @@ export default function AuditDetailPage() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white">
-      <Header />
+    <AuthGuard>
+      <div className="min-h-screen bg-black text-white">
+        <Header />
       <StatusBar activeAuditAddress={auditAddress} onNewAuditClick={handleNewAuditClick} />
       <NewAuditModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onDeploy={handleDeploy} />
 
@@ -124,6 +126,7 @@ export default function AuditDetailPage() {
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    </AuthGuard>
   );
 }

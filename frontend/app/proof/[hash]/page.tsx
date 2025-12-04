@@ -1,37 +1,41 @@
+'use client';
+
+import React, { useEffect, useState } from 'react';
+import { useParams } from 'next/navigation';
+import { AuthGuard } from '@/components/AuthGuard';
 import ProofDetail from '@/components/ProofDetail';
 
-interface PageProps {
-  params: Promise<{ hash: string }> | { hash: string };
-}
+export default function ProofPage() {
+  const params = useParams();
+  const [hash, setHash] = useState<string>('unknown');
 
-export default async function ProofPage({ params }: PageProps) {
-  let hash: string;
-  
-  try {
-    // Handle both Promise and direct params (for Next.js version compatibility)
-    const resolvedParams = params instanceof Promise ? await params : params;
-    hash = resolvedParams.hash;
-    
-    // Decode the hash in case it's URL-encoded
-    if (hash) {
+  useEffect(() => {
+    if (params?.hash) {
+      let decodedHash: string;
       try {
-        hash = decodeURIComponent(hash);
+        decodedHash = typeof params.hash === 'string' 
+          ? decodeURIComponent(params.hash)
+          : Array.isArray(params.hash) 
+            ? decodeURIComponent(params.hash[0])
+            : 'unknown';
       } catch {
-        // If decode fails, use original hash
+        decodedHash = typeof params.hash === 'string' 
+          ? params.hash
+          : Array.isArray(params.hash) 
+            ? params.hash[0]
+            : 'unknown';
+      }
+      
+      if (decodedHash && decodedHash.length > 0) {
+        setHash(decodedHash);
       }
     }
-    
-    // Validate hash exists
-    if (!hash || hash.length === 0) {
-      hash = 'unknown';
-    }
-  } catch (error) {
-    console.error('Error loading proof page params:', error);
-    hash = 'unknown';
-  }
+  }, [params]);
 
-  // In a real implementation, you would fetch proof data from an API
-  // For now, we'll use the hash from the URL
-  return <ProofDetail hash={hash} />;
+  return (
+    <AuthGuard>
+      <ProofDetail hash={hash} />
+    </AuthGuard>
+  );
 }
 

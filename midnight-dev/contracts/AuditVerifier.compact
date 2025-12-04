@@ -1,0 +1,293 @@
+/**
+ * AuditVerifier.compact
+ * 
+ * Zero-Knowledge Security Audit Verification Contract for Midnight Network
+ * 
+ * Purpose: Verify security audit results using zero-knowledge proofs without
+ * revealing sensitive vulnerability details or risk scores.
+ * 
+ * This contract allows auditors to:
+ * - Submit audit results with private exploit strings and risk scores
+ * - Prove that risk scores exceed a threshold (> 90) without revealing the actual score
+ * - Prove that exploit strings are non-empty without revealing their content
+ * - Store verification status and auditor IDs publicly on-chain
+ * 
+ * Privacy Guarantees:
+ * - exploit_string: Never revealed on-chain, only used in ZK proofs
+ * - risk_score: Never revealed on-chain, only proven to be > threshold
+ * - submission_timestamp: Private timestamp of when audit was submitted
+ * 
+ * Public Information:
+ * - is_verified: Whether the audit passed verification (public)
+ * - auditor_id: Anonymous identifier for the auditor (public)
+ * - proof_timestamp: When the proof was generated (public)
+ */
+
+pragma language_version >= 0.16 && <= 0.18;
+import CompactStandardLibrary;
+
+// ============================================================================
+// PUBLIC LEDGER STATE (Visible to everyone on-chain)
+// ============================================================================
+
+/**
+ * is_verified: Map<Bytes<32>, Bool>
+ * Maps audit_id -> verification status
+ * - true: Audit passed ZK verification (risk_score > 90 and exploit_string non-empty)
+ * - false: Audit failed verification or not yet verified
+ */
+export ledger is_verified: Map<Bytes<32>, Bool>;
+
+/**
+ * auditor_id: Map<Bytes<32>, Bytes<32>>
+ * Maps audit_id -> anonymous auditor identifier
+ * - Public identifier that doesn't reveal the auditor's identity
+ * - Can be a hash or pseudonymous address
+ */
+export ledger auditor_id: Map<Bytes<32>, Bytes<32>>;
+
+/**
+ * proof_timestamp: Map<Bytes<32>, Uint<64>>
+ * Maps audit_id -> timestamp when proof was generated
+ * - Unix timestamp in seconds
+ * - Public record of when verification occurred
+ */
+export ledger proof_timestamp: Map<Bytes<32>, Uint<64>>;
+
+// ============================================================================
+// PRIVATE WITNESS DATA (Never revealed on-chain, only used in ZK proofs)
+// ============================================================================
+
+/**
+ * exploit_string(): Bytes<64>
+ * The actual vulnerability/exploit code or description
+ * - Private witness data that is NEVER revealed on-chain
+ * - Used only within ZK circuit to prove properties (e.g., non-empty)
+ * - Maximum 64 bytes to fit in Compact's Bytes<64> type
+ */
+witness exploit_string(): Bytes<64>;
+
+/**
+ * risk_score(): Uint<8>
+ * Security risk score from 0-100
+ * - 0-90: Low to medium severity
+ * - 91-100: High severity (requires verification)
+ * - Private witness that is NEVER revealed on-chain
+ * - Only proven to be > 90 without revealing actual value
+ */
+witness risk_score(): Uint<8>;
+
+/**
+ * submission_timestamp(): Uint<64>
+ * Unix timestamp when the audit was originally submitted
+ * - Private timestamp for audit tracking
+ * - Not revealed on-chain, only used internally
+ */
+witness submission_timestamp(): Uint<64>;
+
+// ============================================================================
+// ZERO-KNOWLEDGE CIRCUITS
+// ============================================================================
+
+/**
+ * submitAudit Circuit
+ * 
+ * Purpose: Submit an audit with private exploit string and risk score,
+ *          generating a ZK proof that verifies:
+ *          1. risk_score > 90 (high severity threshold)
+ *          2. exploit_string.length > 0 (non-empty exploit)
+ * 
+ * Privacy: This circuit proves properties about private data WITHOUT revealing:
+ *          - The actual risk_score value (only that it's > 90)
+ *          - The exploit_string content (only that it's non-empty)
+ *          - The submission_timestamp value
+ * 
+ * @param audit_id: Bytes<32> - Unique identifier for this audit (public)
+ * @param auditor_id: Bytes<32> - Anonymous auditor identifier (public)
+ * @param threshold: Uint<8> - Minimum risk score threshold (default: 90)
+ * @param proof_timestamp: Uint<64> - Public timestamp when proof is generated
+ * 
+ * @returns: [] - No return value, updates ledger state
+ */
+export circuit submitAudit(
+  audit_id: Bytes<32>,
+  auditor_id: Bytes<32>,
+  threshold: Uint<8>,
+  proof_timestamp: Uint<64>
+): [] {
+  
+  // ========================================================================
+  // STEP 1: Retrieve Private Witness Data
+  // ========================================================================
+  // These values are only accessible within the circuit and are NEVER
+  // revealed on-chain. They exist only in the prover's private state.
+  
+  const privateExploitString = exploit_string();
+  const privateRiskScore = risk_score();
+  const privateSubmissionTimestamp = submission_timestamp();
+  
+  // ========================================================================
+  // STEP 2: ZK Proof - Verify Risk Score > Threshold
+  // ========================================================================
+  // This assertion proves that risk_score > threshold WITHOUT revealing
+  // the actual risk_score value. The proof is generated cryptographically
+  // and can be verified by anyone, but the actual score remains private.
+  
+  // Prove: risk_score > 90 (high severity threshold)
+  // This is a ZK proof - verifiers can confirm the proof is valid without
+  // learning the actual risk_score value
+  assert(
+    privateRiskScore > threshold,
+    "Risk score must exceed threshold (risk_score <= threshold)"
+  );
+  
+  // ========================================================================
+  // STEP 3: ZK Proof - Verify Exploit String is Non-Empty
+  // ========================================================================
+  // Prove that exploit_string has length > 0 WITHOUT revealing its content.
+  // We check that the string is not all zeros (empty/null).
+  
+  // Create a zero-filled bytes array for comparison
+  // In Compact, we initialize with zeros using array literal
+  const zeroBytes: Bytes<64> = [0; 64];
+  
+  // Prove: exploit_string != zeroBytes (non-empty)
+  // This proves the string has content without revealing what it contains
+  // The ZK proof verifies inequality without revealing either value
+  assert(
+    privateExploitString != zeroBytes,
+    "Exploit string must be non-empty"
+  );
+  
+  // ========================================================================
+  // STEP 4: Use Public Proof Timestamp
+  // ========================================================================
+  // The proof_timestamp is passed as a public parameter
+  // This represents when the proof is generated (public information)
+  // The private submission_timestamp remains hidden and is not disclosed
+  // 
+  // Note: The caller should provide the current timestamp when generating
+  // the proof. This is public information and doesn't reveal the private
+  // submission_timestamp value.
+  const currentTimestamp = proof_timestamp;
+  
+  // ========================================================================
+  // STEP 5: Store Public State on Ledger
+  // ========================================================================
+  // These values are disclosed (made public) on the ledger.
+  // Private witness data (exploit_string, risk_score, submission_timestamp)
+  // is NEVER disclosed and remains private.
+  
+  // Mark audit as verified (public)
+  // This proves the ZK verification passed without revealing private data
+  is_verified.insert(
+    disclose(audit_id),
+    disclose(true)
+  );
+  
+  // Store auditor identifier (public)
+  // This is the anonymous identifier, not revealing the actual auditor
+  auditor_id.insert(
+    disclose(audit_id),
+    disclose(auditor_id)
+  );
+  
+  // Store proof generation timestamp (public)
+  // Public record of when verification occurred
+  proof_timestamp.insert(
+    disclose(audit_id),
+    disclose(currentTimestamp)
+  );
+  
+  // ========================================================================
+  // ZK PROOF COMPLETE
+  // ========================================================================
+  // At this point, a zero-knowledge proof has been generated that:
+  // 1. Proves risk_score > threshold without revealing the actual score
+  // 2. Proves exploit_string is non-empty without revealing its content
+  // 3. Stores verification status and metadata publicly
+  // 
+  // The proof can be verified by anyone, but private data remains hidden.
+}
+
+/**
+ * verifyProof Circuit
+ * 
+ * Purpose: Verify if an audit has passed ZK verification
+ * 
+ * This is a read-only circuit that checks the public ledger state.
+ * It does not require private witness data and can be called by anyone.
+ * 
+ * @param audit_id: Bytes<32> - The audit identifier to check
+ * 
+ * @returns: Bool - true if audit is verified, false otherwise
+ */
+export circuit verifyProof(
+  audit_id: Bytes<32>
+): Bool {
+  
+  // Check if audit_id exists in the is_verified map
+  // This reads from public ledger state, no private data needed
+  const verified = is_verified.get(disclose(audit_id));
+  
+  // Return verification status
+  // If audit_id doesn't exist, get() returns None, which we treat as false
+  // Compact uses match expressions for Option types
+  match (verified) {
+    Some(value) => value;
+    None => false;
+  }
+}
+
+/**
+ * getAuditorId Circuit
+ * 
+ * Purpose: Get the public auditor identifier for an audit
+ * 
+ * This circuit returns the auditor_id stored on the ledger.
+ * It does NOT reveal any private data (exploit_string, risk_score, etc.)
+ * 
+ * @param audit_id: Bytes<32> - The audit identifier
+ * 
+ * @returns: Bytes<32> - The auditor identifier, or zero bytes if not found
+ */
+export circuit getAuditorId(
+  audit_id: Bytes<32>
+): Bytes<32> {
+  
+  // Retrieve auditor_id from public ledger state
+  const auditor = auditor_id.get(disclose(audit_id));
+  
+  // Return auditor_id or zero bytes if not found
+  const zeroBytes: Bytes<32> = [0; 32];
+  match (auditor) {
+    Some(id) => id;
+    None => zeroBytes;
+  }
+}
+
+/**
+ * getProofTimestamp Circuit
+ * 
+ * Purpose: Get the timestamp when the proof was generated
+ * 
+ * Additional helper circuit to retrieve proof timestamp.
+ * 
+ * @param audit_id: Bytes<32> - The audit identifier
+ * 
+ * @returns: Uint<64> - The proof timestamp, or 0 if not found
+ */
+export circuit getProofTimestamp(
+  audit_id: Bytes<32>
+): Uint<64> {
+  
+  // Retrieve proof_timestamp from public ledger state
+  const timestamp = proof_timestamp.get(disclose(audit_id));
+  
+  // Return timestamp or 0 if not found
+  match (timestamp) {
+    Some(ts) => ts;
+    None => 0;
+  }
+}
+

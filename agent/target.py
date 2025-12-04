@@ -7,6 +7,10 @@ from uagents_core.contrib.protocols.chat import (
     TextContent,
     chat_protocol_spec
 )
+from uagents_core.utils.registration import (  # pyright: ignore[reportMissingImports]
+    register_chat_agent,
+    RegistrationRequestCredentials,
+)
 import sys
 import os
 import httpx  # pyright: ignore[reportMissingImports]
@@ -19,6 +23,9 @@ from logger import log
 # ASI.Cloud API Configuration
 ASI_API_KEY = os.getenv("ASI_API_KEY", "sk_f19e4e7f7c0e460e9ebeed7132a13fedcca7c7d7133a482ca0636e2850751d2b")
 ASI_API_URL = os.getenv("ASI_API_URL", "https://api.asi.cloud/v1/chat/completions")
+
+# AgentVerse API Configuration
+AGENTVERSE_KEY = os.getenv("AGENTVERSE_KEY", "eyJhbGciOiJSUzI1NiJ9.eyJleHAiOjE3Njc0NjQ3NzQsImlhdCI6MTc2NDg3Mjc3NCwiaXNzIjoiZmV0Y2guYWkiLCJqdGkiOiIzMDExMjJiNWNiODkwN2I1YTBjMzRjMDQiLCJwayI6IkF1NCtIWjYxUlM2K283RTFkak1RYnlYWWJQRVNNWFVFZmZ5ZUhGNVE5NlBUIiwic2NvcGUiOiJhdiIsInN1YiI6IjVjMDdiNDQxZmM5ZTk1MDFlM2I0Y2FjYWJkNmM5MTJhYWIxMTM3ZTY5YWIxODk0YSJ9.ko8LHxDG3CB6CBlHX_OYq6DmOB9dCAcpBLywMCatEOzRXwdF1LiwnuI9AVOwpeqdmtqlispQgbNwmT3cY31clq32xmX3fn4Py_eLR4YDswdogJ6_v1rRNF_d6I4H8wgJDx4Tx31ZG9hrYiXHK6btY6ltg_JsfGxAR7o25iRzM3lHmwjFsL3skkfPf-XPgUZc_Nc5cGj93cEQ-NXV3YvYrbGkyn7fBDz_REdvepykjLOHMsLCXHBYf5lpYklQGCQBSZU1QK9lTcu5ZQvZkYY0EbwYqx0hTtiWq77uYU6hDhbHvSwKtGzv9xwdr9RjVcfxKkUBuidxrbK842FxvcLzrg")
 
 
 class AttackMessage(Model):
@@ -146,6 +153,30 @@ def create_target_agent(port: int = None, judge_address: str = None) -> Agent:
         ctx.logger.info("Protecting SECRET_KEY...")
         log("Target", f"Target Agent started: {target.address}", "🎯", "info")
         log("Target", f"Listening on port {agent_port}", "🎯", "info")
+        
+        # Register with Agentverse
+        try:
+            agentverse_key = os.environ.get("AGENTVERSE_KEY") or AGENTVERSE_KEY
+            agent_seed_phrase = os.environ.get("AGENT_SEED_PHRASE") or agent_seed
+            endpoint_url = f"http://{agent_ip}:{agent_port}/submit"
+            
+            if agentverse_key:
+                register_chat_agent(
+                    "target",
+                    endpoint_url,
+                    active=True,
+                    credentials=RegistrationRequestCredentials(
+                        agentverse_api_key=agentverse_key,
+                        agent_seed_phrase=agent_seed_phrase,
+                    ),
+                )
+                ctx.logger.info(f"Target Agent registered with Agentverse at {endpoint_url}")
+                log("Target", f"Registered with Agentverse: {endpoint_url}", "🎯", "info")
+            else:
+                ctx.logger.warning("AGENTVERSE_KEY not set, skipping Agentverse registration")
+        except Exception as e:
+            ctx.logger.error(f"Failed to register with Agentverse: {str(e)}")
+            log("Target", f"Agentverse registration error: {str(e)}", "🎯", "info")
 
     @target.on_message(model=AttackMessage)
     async def handle_attack(ctx: Context, sender: str, msg: AttackMessage):

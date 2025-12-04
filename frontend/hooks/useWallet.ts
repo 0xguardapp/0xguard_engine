@@ -1,98 +1,112 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useAccount, useDisconnect } from 'wagmi';
 
 interface WalletState {
   isConnected: boolean;
   address: string | null;
   isLoading: boolean;
+  walletType: 'ethereum' | 'keplr' | null;
 }
 
 export function useWallet() {
-  const [state, setState] = useState<WalletState>({
+  // Ethereum wallet state from wagmi
+  const { address: ethAddress, isConnected: isEthConnected } = useAccount();
+  const { disconnect: disconnectEth } = useDisconnect();
+
+  // Local state for Keplr and combined wallet state
+  const [keplrState, setKeplrState] = useState<{
+    isConnected: boolean;
+    address: string | null;
+  }>({
     isConnected: false,
     address: null,
-    isLoading: false,
   });
+
+  const [isConnecting, setIsConnecting] = useState(false);
 
   // Check if Keplr is available
   const isKeplrAvailable = typeof window !== 'undefined' && 'keplr' in window;
 
-  // Generate mock address
-  const generateMockAddress = useCallback(() => {
-    const prefix = 'fetch1';
-    const randomChars = 'abcdefghijklmnopqrstuvwxyz0123456789';
-    let address = prefix;
-    for (let i = 0; i < 10; i++) {
-      address += randomChars[Math.floor(Math.random() * randomChars.length)];
-    }
-    address += '...9zX';
-    return address;
-  }, []);
+  // Determine current wallet state
+  const isConnected = isEthConnected || keplrState.isConnected;
+  const address = ethAddress || keplrState.address;
+  const walletType: 'ethereum' | 'keplr' | null = ethAddress
+    ? 'ethereum'
+    : keplrState.address
+    ? 'keplr'
+    : null;
 
-  // Connect wallet
+  // Connect wallet - for Ethereum, RainbowKit handles this via ConnectButton
+  // This function is mainly for Keplr fallback
   const connectWallet = useCallback(async () => {
-    setState((prev) => ({ ...prev, isLoading: true }));
+    setIsConnecting(true);
 
     try {
+      // If no Ethereum wallet, try Keplr
       if (isKeplrAvailable) {
-        // Try to connect with Keplr
         const keplr = (window as any).keplr;
         if (keplr) {
-          // Request access to Fetch.ai chain
-          // For now, we'll use a mock since we don't have the exact chain ID
-          // In production, you would use: await keplr.enable('fetchhub-4');
-          const accounts = await keplr.getKey('fetchhub-4').catch(() => null);
-          
-          if (accounts) {
-            setState({
-              isConnected: true,
-              address: accounts.bech32Address,
-              isLoading: false,
-            });
-            return;
+          try {
+            // Request access to Fetch.ai chain
+            await keplr.enable('fetchhub-4');
+            const key = await keplr.getKey('fetchhub-4');
+            
+            if (key && key.bech32Address) {
+              setKeplrState({
+                isConnected: true,
+                address: key.bech32Address,
+              });
+              setIsConnecting(false);
+              return;
+            }
+          } catch (error) {
+            console.error('Failed to connect Keplr:', error);
           }
         }
       }
 
-      // Fallback to mock wallet
-      const mockAddress = generateMockAddress();
-      setState({
-        isConnected: true,
-        address: mockAddress,
-        isLoading: false,
-      });
+      setIsConnecting(false);
     } catch (error) {
       console.error('Failed to connect wallet:', error);
-      // Fallback to mock on error
-      const mockAddress = generateMockAddress();
-      setState({
-        isConnected: true,
-        address: mockAddress,
-        isLoading: false,
-      });
+      setIsConnecting(false);
     }
-  }, [isKeplrAvailable, generateMockAddress]);
+  }, [isKeplrAvailable]);
 
   // Disconnect wallet
   const disconnectWallet = useCallback(() => {
-    setState({
-      isConnected: false,
-      address: null,
-      isLoading: false,
-    });
-  }, []);
+    if (walletType === 'ethereum') {
+      disconnectEth();
+    } else if (walletType === 'keplr') {
+      setKeplrState({
+        isConnected: false,
+        address: null,
+      });
+    }
+  }, [walletType, disconnectEth]);
 
   // Get truncated address for display
   const getTruncatedAddress = useCallback(() => {
-    if (!state.address) return null;
-    if (state.address.includes('...')) return state.address; // Already truncated
-    if (state.address.length <= 16) return state.address;
-    return `${state.address.slice(0, 8)}...${state.address.slice(-4)}`;
-  }, [state.address]);
+    if (!address) return null;
+    if (address.includes('...')) return address; // Already truncated
+    
+    // Ethereum addresses (0x...)
+    if (address.startsWith('0x')) {
+      if (address.length <= 16) return address;
+      return `${address.slice(0, 6)}...${address.slice(-4)}`;
+    }
+    
+    // Cosmos addresses (fetch1...)
+    if (address.length <= 16) return address;
+    return `${address.slice(0, 8)}...${address.slice(-4)}`;
+  }, [address]);
 
   return {
-    ...state,
+    isConnected,
+    address,
+    isLoading: isConnecting,
+    walletType,
     connectWallet,
     disconnectWallet,
     getTruncatedAddress,
