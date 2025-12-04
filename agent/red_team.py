@@ -22,11 +22,11 @@ from logger import log
 from unibase import get_known_exploits, save_exploit, format_exploit_message
 
 # ASI.Cloud API Configuration
-ASI_API_KEY = os.getenv("ASI_API_KEY", "sk_f19e4e7f7c0e460e9ebeed7132a13fedcca7c7d7133a482ca0636e2850751d2b")
+ASI_API_KEY = os.getenv("ASI_API_KEY", "")
 ASI_API_URL = os.getenv("ASI_API_URL", "https://api.asi.cloud/v1/chat/completions")
 
 # AgentVerse API Configuration
-AGENTVERSE_KEY = os.getenv("AGENTVERSE_KEY", "eyJhbGciOiJSUzI1NiJ9.eyJleHAiOjE3Njc0NjQ3NzQsImlhdCI6MTc2NDg3Mjc3NCwiaXNzIjoiZmV0Y2guYWkiLCJqdGkiOiIzMDExMjJiNWNiODkwN2I1YTBjMzRjMDQiLCJwayI6IkF1NCtIWjYxUlM2K283RTFkak1RYnlYWWJQRVNNWFVFZmZ5ZUhGNVE5NlBUIiwic2NvcGUiOiJhdiIsInN1YiI6IjVjMDdiNDQxZmM5ZTk1MDFlM2I0Y2FjYWJkNmM5MTJhYWIxMTM3ZTY5YWIxODk0YSJ9.ko8LHxDG3CB6CBlHX_OYq6DmOB9dCAcpBLywMCatEOzRXwdF1LiwnuI9AVOwpeqdmtqlispQgbNwmT3cY31clq32xmX3fn4Py_eLR4YDswdogJ6_v1rRNF_d6I4H8wgJDx4Tx31ZG9hrYiXHK6btY6ltg_JsfGxAR7o25iRzM3lHmwjFsL3skkfPf-XPgUZc_Nc5cGj93cEQ-NXV3YvYrbGkyn7fBDz_REdvepykjLOHMsLCXHBYf5lpYklQGCQBSZU1QK9lTcu5ZQvZkYY0EbwYqx0hTtiWq77uYU6hDhbHvSwKtGzv9xwdr9RjVcfxKkUBuidxrbK842FxvcLzrg")
+AGENTVERSE_KEY = os.getenv("AGENTVERSE_KEY", "")
 
 
 class AttackMessage(Model):

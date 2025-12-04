@@ -32,11 +32,11 @@ from proof_verifier import (
 )
 
 # ASI.Cloud API Configuration
-ASI_API_KEY = os.getenv("ASI_API_KEY", "sk_f19e4e7f7c0e460e9ebeed7132a13fedcca7c7d7133a482ca0636e2850751d2b")
+ASI_API_KEY = os.getenv("ASI_API_KEY", "")
 ASI_API_URL = os.getenv("ASI_API_URL", "https://api.asi.cloud/v1/chat/completions")
 
 # AgentVerse API Configuration
-AGENTVERSE_KEY = os.getenv("AGENTVERSE_KEY", "eyJhbGciOiJSUzI1NiJ9.eyJleHAiOjE3Njc0NjQ3NzQsImlhdCI6MTc2NDg3Mjc3NCwiaXNzIjoiZmV0Y2guYWkiLCJqdGkiOiIzMDExMjJiNWNiODkwN2I1YTBjMzRjMDQiLCJwayI6IkF1NCtIWjYxUlM2K283RTFkak1RYnlYWWJQRVNNWFVFZmZ5ZUhGNVE5NlBUIiwic2NvcGUiOiJhdiIsInN1YiI6IjVjMDdiNDQxZmM5ZTk1MDFlM2I0Y2FjYWJkNmM5MTJhYWIxMTM3ZTY5YWIxODk0YSJ9.ko8LHxDG3CB6CBlHX_OYq6DmOB9dCAcpBLywMCatEOzRXwdF1LiwnuI9AVOwpeqdmtqlispQgbNwmT3cY31clq32xmX3fn4Py_eLR4YDswdogJ6_v1rRNF_d6I4H8wgJDx4Tx31ZG9hrYiXHK6btY6ltg_JsfGxAR7o25iRzM3lHmwjFsL3skkfPf-XPgUZc_Nc5cGj93cEQ-NXV3YvYrbGkyn7fBDz_REdvepykjLOHMsLCXHBYf5lpYklQGCQBSZU1QK9lTcu5ZQvZkYY0EbwYqx0hTtiWq77uYU6hDhbHvSwKtGzv9xwdr9RjVcfxKkUBuidxrbK842FxvcLzrg")
+AGENTVERSE_KEY = os.getenv("AGENTVERSE_KEY", "")
 
 # Import message models - define locally to avoid circular imports
 class ResponseMessage(Model):
@@ -48,8 +48,8 @@ class AttackMessage(Model):
     payload: str
 
 
-# SECRET_KEY from target (hardcoded for now to avoid import)
-SECRET_KEY = "fetch_ai_2024"
+# SECRET_KEY from target - use environment variable if available
+SECRET_KEY = os.getenv("TARGET_SECRET_KEY", "fetch_ai_2024")
 
 
 async def analyze_vulnerability_with_asi(exploit_payload: str, response_message: str) -> dict:
@@ -151,7 +151,7 @@ def create_judge_agent(port: int = None) -> Agent:
     # Mailbox configuration: Use mailbox key from Agentverse if provided, otherwise use boolean
     # When you create a "Local Agent" on Agentverse, you'll receive a mailbox key
     # Set MAILBOX_KEY environment variable with your Agentverse mailbox key
-    mailbox_key = os.getenv("MAILBOX_KEY") or os.getenv("JUDGE_MAILBOX_KEY") or "agent1qt8jqpw4p55jeht5pydz4x6u4r3kckmxjkmyg5ud3dlr6kvs0epqjwrzvsk"
+    mailbox_key = os.getenv("MAILBOX_KEY") or os.getenv("JUDGE_MAILBOX_KEY")
     if mailbox_key:
         mailbox = mailbox_key  # Use mailbox key string for Agentverse
     else:
