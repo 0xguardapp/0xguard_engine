@@ -133,15 +133,25 @@ def create_judge_agent(port: int = None) -> Agent:
     # Get configuration from environment variables with sensible defaults
     agent_ip = os.getenv("JUDGE_IP") or os.getenv("AGENT_IP", "localhost")
     agent_port = port or int(os.getenv("JUDGE_PORT") or os.getenv("AGENT_PORT", "8002"))
-    agent_seed = os.getenv("JUDGE_SEED") or os.getenv("AGENT_SEED", "judge_secret_seed_phrase")
-    use_mailbox = os.getenv("USE_MAILBOX", "true").lower() == "true"
+    agent_seed = os.getenv("JUDGE_SEED") or os.getenv("AGENT_SEED", "judge-agent-hackathon-2025")
+    
+    # Mailbox configuration: Use mailbox key from Agentverse if provided, otherwise use boolean
+    # When you create a "Local Agent" on Agentverse, you'll receive a mailbox key
+    # Set MAILBOX_KEY environment variable with your Agentverse mailbox key
+    mailbox_key = os.getenv("MAILBOX_KEY") or os.getenv("JUDGE_MAILBOX_KEY") or "agent1qt8jqpw4p55jeht5pydz4x6u4r3kckmxjkmyg5ud3dlr6kvs0epqjwrzvsk"
+    if mailbox_key:
+        mailbox = mailbox_key  # Use mailbox key string for Agentverse
+    else:
+        # Fallback to boolean if no key provided
+        use_mailbox = os.getenv("USE_MAILBOX", "true").lower() == "true"
+        mailbox = use_mailbox
     
     judge = Agent(
         name="judge_agent",
         port=agent_port,
         seed=agent_seed,  # CRITICAL: Don't hardcode seeds in production!
         endpoint=[f"http://{agent_ip}:{agent_port}/submit"],
-        mailbox=use_mailbox,  # Recommended for Agentverse
+        mailbox=mailbox,  # Mailbox key from Agentverse or boolean
     )
     
     # Include the Chat Protocol (optional - only for Agentverse registration)

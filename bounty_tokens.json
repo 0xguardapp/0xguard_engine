@@ -125,6 +125,41 @@
       "amount": 1,
       "exploit": "test_exploit",
       "timestamp": "2025-12-04T14:15:20.517045"
+    },
+    {
+      "type": "bounty_token",
+      "recipient": "agent1test123",
+      "amount": 1,
+      "exploit": "test_exploit_' OR '1'='1",
+      "timestamp": "2025-12-04T19:01:40.417962"
+    },
+    {
+      "type": "bounty_token",
+      "recipient": "test_address",
+      "amount": 1,
+      "exploit": "test_exploit",
+      "timestamp": "2025-12-04T19:01:40.843883"
+    },
+    {
+      "type": "bounty_token",
+      "recipient": "agent1test",
+      "amount": 1,
+      "exploit": "fetch_ai_2024",
+      "timestamp": "2025-12-04T19:01:59.857299"
+    },
+    {
+      "type": "bounty_token",
+      "recipient": "agent1redteam",
+      "amount": 1,
+      "exploit": "fetch_ai_2024",
+      "timestamp": "2025-12-04T19:01:59.858881"
+    },
+    {
+      "type": "bounty_token",
+      "recipient": "agent1qf2mssnkhf29fk7vj2fy8ekmhdfke0ptu4k9dyvfcuk7tt6easatge9z96d",
+      "amount": 1,
+      "exploit": "fetch_ai_2024",
+      "timestamp": "2025-12-04T19:02:21.696678"
     }
   ]
 }
