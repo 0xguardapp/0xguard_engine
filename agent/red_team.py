@@ -1,17 +1,17 @@
-from uagents import Agent, Context, Model, Protocol
-from uagents_core.contrib.protocols.chat import (
+from uagents import Agent, Context, Model, Protocol  # pyright: ignore[reportMissingImports]
+from uagents_core.contrib.protocols.chat import (  # pyright: ignore[reportMissingImports]
     ChatMessage,
     ChatAcknowledgement,
     TextContent,
     chat_protocol_spec
 )
-from uagents_core.utils.registration import (
+from uagents_core.utils.registration import (  # pyright: ignore[reportMissingImports]
     register_chat_agent,
     RegistrationRequestCredentials,
 )
 import sys
 import os
-import httpx
+import httpx  # pyright: ignore[reportMissingImports]
 from pathlib import Path
 
 # Add agent directory to path for logger import
