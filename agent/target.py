@@ -1,7 +1,9 @@
 from uagents import Agent, Context, Model, Protocol
 from uagents_core.contrib.protocols.chat import (
-    ChatMessage,
+    AgentContent,
     ChatAcknowledgement,
+    ChatMessage,
+    EndSessionContent,
     TextContent,
     chat_protocol_spec
 )

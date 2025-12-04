@@ -1,13 +1,11 @@
 from uagents import Agent, Context, Model, Protocol  # pyright: ignore[reportMissingImports]
 from uagents_core.contrib.protocols.chat import (  # pyright: ignore[reportMissingImports]
-    ChatMessage,
+    AgentContent,
     ChatAcknowledgement,
+    ChatMessage,
+    EndSessionContent,
     TextContent,
     chat_protocol_spec
-)
-from uagents_core.utils.registration import (  # pyright: ignore[reportMissingImports]
-    register_chat_agent,
-    RegistrationRequestCredentials,
 )
 import sys
 import os
@@ -152,30 +150,6 @@ def create_red_team_agent(
         ctx.logger.info(f"Target: {target_address}")
         log("RedTeam", f"Red Team Agent started: {red_team.address}", "🔴", "info")
         log("RedTeam", f"Target: {target_address}", "🔴", "info")
-        
-        # Register with Agentverse
-        try:
-            agentverse_key = os.environ.get("AGENTVERSE_KEY")
-            agent_seed_phrase = os.environ.get("AGENT_SEED_PHRASE") or agent_seed
-            endpoint_url = f"http://{agent_ip}:{agent_port}/submit"
-            
-            if agentverse_key:
-                register_chat_agent(
-                    "red-team",
-                    endpoint_url,
-                    active=True,
-                    credentials=RegistrationRequestCredentials(
-                        agentverse_api_key=agentverse_key,
-                        agent_seed_phrase=agent_seed_phrase,
-                    ),
-                )
-                ctx.logger.info(f"Red Team Agent registered with Agentverse at {endpoint_url}")
-                log("RedTeam", f"Registered with Agentverse: {endpoint_url}", "🔴", "info")
-            else:
-                ctx.logger.warning("AGENTVERSE_KEY not set, skipping Agentverse registration")
-        except Exception as e:
-            ctx.logger.error(f"Failed to register with Agentverse: {str(e)}")
-            log("RedTeam", f"Agentverse registration error: {str(e)}", "🔴", "info")
         
         # Read known exploits from Unibase on startup
         try:
