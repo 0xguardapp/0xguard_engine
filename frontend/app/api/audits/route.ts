@@ -73,6 +73,56 @@ const mockAudits: Audit[] = [
     riskScore: undefined,
     intensity: 'quick',
   },
+  {
+    id: 'audit_8',
+    targetAddress: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb',
+    status: 'completed',
+    createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days ago
+    updatedAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000 + 6 * 60 * 60 * 1000).toISOString(), // 7 days ago + 6 hours
+    vulnerabilityCount: 15,
+    riskScore: 95,
+    intensity: 'deep',
+  },
+  {
+    id: 'audit_9',
+    targetAddress: '0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2',
+    status: 'completed',
+    createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(), // 10 days ago
+    updatedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000 + 8 * 60 * 60 * 1000).toISOString(), // 10 days ago + 8 hours
+    vulnerabilityCount: 5,
+    riskScore: 67,
+    intensity: 'quick',
+  },
+  {
+    id: 'audit_10',
+    targetAddress: '0x4B20993Bc481177ec7E8f571ceCaE8A9e22C02db',
+    status: 'active',
+    createdAt: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(), // 4 hours ago
+    updatedAt: new Date(Date.now() - 15 * 60 * 1000).toISOString(), // 15 minutes ago
+    vulnerabilityCount: 2,
+    riskScore: 72,
+    intensity: 'deep',
+  },
+  {
+    id: 'audit_11',
+    targetAddress: '0x78731D3Ca6b7E34aC0F824c42a7cC18A495cabAB',
+    status: 'completed',
+    createdAt: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(), // 14 days ago
+    updatedAt: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000 + 5 * 60 * 60 * 1000).toISOString(), // 14 days ago + 5 hours
+    vulnerabilityCount: 8,
+    riskScore: 88,
+    intensity: 'deep',
+  },
+  {
+    id: 'audit_12',
+    targetAddress: '0x617F2E2fD72FD9D5503197092aC168c91465E7f2',
+    status: 'completed',
+    createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), // 2 days ago
+    updatedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000 + 3 * 60 * 60 * 1000).toISOString(), // 2 days ago + 3 hours
+    vulnerabilityCount: 4,
+    riskScore: 56,
+    intensity: 'quick',
+  },
 ];
 
 /**

@@ -194,23 +194,11 @@ export async function POST(request: NextRequest) {
     console.log('[POST /api/audit/start] Agent API health check passed, starting agents...');
     
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), timeout);
-      
-      const response = await fetch(`${agentApiUrl}/api/agents/start`, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'User-Agent': '0xGuard-Frontend/1.0'
-        },
-        body: JSON.stringify({ 
-          targetAddress: trimmedAddress, 
-          intensity: normalizedIntensity 
-        }),
-        signal: controller.signal
+      const response = await fetch(`${process.env.AGENT_API_URL}/api/agents/start`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ targetAddress: trimmedAddress, intensity: normalizedIntensity }),
       });
-
-      clearTimeout(timeoutId);
 
       console.log(`[POST /api/audit/start] Agent API response status: ${response.status}`);
 
