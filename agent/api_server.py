@@ -13,13 +13,44 @@ from typing import Optional, Dict, Any, List
 from datetime import datetime
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 import uvicorn
+import json
 
 # Add agent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent))
+
+# WebSocket connection manager
+class ConnectionManager:
+    """Manages WebSocket connections for real-time status updates"""
+    def __init__(self):
+        self.active_connections: List[WebSocket] = []
+    
+    async def connect(self, websocket: WebSocket):
+        await websocket.accept()
+        self.active_connections.append(websocket)
+    
+    def disconnect(self, websocket: WebSocket):
+        if websocket in self.active_connections:
+            self.active_connections.remove(websocket)
+    
+    async def broadcast(self, message: dict):
+        """Broadcast message to all connected clients"""
+        disconnected = []
+        for connection in self.active_connections:
+            try:
+                await connection.send_json(message)
+            except Exception:
+                disconnected.append(connection)
+        
+        # Remove disconnected clients
+        for connection in disconnected:
+            self.disconnect(connection)
+
+
+connection_manager = ConnectionManager()
 
 # Global state for agent processes
 class AgentState:
@@ -33,6 +64,16 @@ class AgentState:
     started_at: Optional[datetime] = None
     target_address_config: Optional[str] = None
     intensity: Optional[str] = None
+    # Enhanced status tracking
+    judge_last_activity: Optional[datetime] = None
+    target_last_activity: Optional[datetime] = None
+    red_team_last_activity: Optional[datetime] = None
+    judge_message_count: int = 0
+    target_message_count: int = 0
+    red_team_message_count: int = 0
+    judge_errors: List[str] = []
+    target_errors: List[str] = []
+    red_team_errors: List[str] = []
 
 
 agent_state = AgentState()
@@ -50,6 +91,10 @@ class AgentStatus(BaseModel):
     address: Optional[str] = None
     last_seen: Optional[str] = None
     health_status: str = Field(default="down", description="healthy | degraded | down")
+    last_activity: Optional[str] = None
+    message_count: int = 0
+    recent_errors: List[str] = Field(default_factory=list)
+    connection_status: Dict[str, bool] = Field(default_factory=dict, description="Connection status to other agents")
 
 
 class AgentsStatusResponse(BaseModel):
@@ -115,8 +160,16 @@ def get_agent_address_from_logs(agent_name: str) -> Optional[str]:
 async def lifespan(app: FastAPI):
     """Startup and shutdown events"""
     # Startup
+    # Start background task for status broadcasting
+    broadcast_task = asyncio.create_task(status_broadcast_task())
     yield
     # Shutdown - cleanup agent processes
+    broadcast_task.cancel()
+    try:
+        await broadcast_task
+    except asyncio.CancelledError:
+        pass
+    
     if agent_state.judge_process:
         agent_state.judge_process.terminate()
     if agent_state.target_process:
@@ -327,13 +380,43 @@ async def start_agents(request: StartAgentsRequest):
         )
 
 
+def get_connection_status(agent_type: str) -> Dict[str, bool]:
+    """
+    Get connection status for an agent to other agents.
+    
+    Args:
+        agent_type: Type of agent (judge, target, red_team)
+        
+    Returns:
+        Dictionary with connection status to other agents
+    """
+    connections = {}
+    
+    if agent_type == "judge":
+        connections["target"] = agent_state.target_process is not None and agent_state.target_process.poll() is None
+        connections["red_team"] = agent_state.red_team_process is not None and agent_state.red_team_process.poll() is None
+    elif agent_type == "target":
+        connections["judge"] = agent_state.judge_process is not None and agent_state.judge_process.poll() is None
+        connections["red_team"] = agent_state.red_team_process is not None and agent_state.red_team_process.poll() is None
+    elif agent_type == "red_team":
+        connections["judge"] = agent_state.judge_process is not None and agent_state.judge_process.poll() is None
+        connections["target"] = agent_state.target_process is not None and agent_state.target_process.poll() is None
+    
+    return connections
+
+
 @app.get("/api/agents/status", response_model=AgentsStatusResponse, tags=["Agents"])
 async def get_agents_status():
     """
-    Get status of all running agents
+    Get status of all running agents with enhanced information
     
     Returns:
-        AgentsStatusResponse with status of each agent
+        AgentsStatusResponse with detailed status of each agent including:
+        - Health status
+        - Last activity timestamp
+        - Message counts
+        - Recent errors
+        - Connection status to other agents
     """
     judge_health = await check_process_health(agent_state.judge_process)
     target_health = await check_process_health(agent_state.target_process)
@@ -347,30 +430,59 @@ async def get_agents_status():
     if not agent_state.red_team_address:
         agent_state.red_team_address = get_agent_address_from_logs("red_team")
     
+    # Get recent errors (last 5)
+    judge_recent_errors = agent_state.judge_errors[-5:] if agent_state.judge_errors else []
+    target_recent_errors = agent_state.target_errors[-5:] if agent_state.target_errors else []
+    red_team_recent_errors = agent_state.red_team_errors[-5:] if agent_state.red_team_errors else []
+    
     return AgentsStatusResponse(
         judge=AgentStatus(
             is_running=judge_health != "down",
             port=8002,
             address=agent_state.judge_address,
             last_seen=agent_state.started_at.isoformat() if agent_state.started_at else None,
-            health_status=judge_health
+            health_status=judge_health,
+            last_activity=agent_state.judge_last_activity.isoformat() if agent_state.judge_last_activity else None,
+            message_count=agent_state.judge_message_count,
+            recent_errors=judge_recent_errors,
+            connection_status=get_connection_status("judge")
         ),
         target=AgentStatus(
             is_running=target_health != "down",
             port=8000,
             address=agent_state.target_address,
             last_seen=agent_state.started_at.isoformat() if agent_state.started_at else None,
-            health_status=target_health
+            health_status=target_health,
+            last_activity=agent_state.target_last_activity.isoformat() if agent_state.target_last_activity else None,
+            message_count=agent_state.target_message_count,
+            recent_errors=target_recent_errors,
+            connection_status=get_connection_status("target")
         ),
         red_team=AgentStatus(
             is_running=red_team_health != "down",
             port=8001,
             address=agent_state.red_team_address,
             last_seen=agent_state.started_at.isoformat() if agent_state.started_at else None,
-            health_status=red_team_health
+            health_status=red_team_health,
+            last_activity=agent_state.red_team_last_activity.isoformat() if agent_state.red_team_last_activity else None,
+            message_count=agent_state.red_team_message_count,
+            recent_errors=red_team_recent_errors,
+            connection_status=get_connection_status("red_team")
         ),
         started_at=agent_state.started_at.isoformat() if agent_state.started_at else None
     )
+
+
+async def status_broadcast_task():
+    """Background task to periodically broadcast agent status updates"""
+    while True:
+        try:
+            await asyncio.sleep(2)  # Broadcast every 2 seconds
+            status = await get_agents_status()
+            await connection_manager.broadcast(status.dict())
+        except Exception as e:
+            # Log error but continue broadcasting
+            print(f"Error in status broadcast: {e}")
 
 
 @app.post("/api/agents/stop", tags=["Agents"])
@@ -406,11 +518,104 @@ async def stop_agents():
     agent_state.target_address = None
     agent_state.red_team_address = None
     agent_state.started_at = None
+    # Reset enhanced status
+    agent_state.judge_last_activity = None
+    agent_state.target_last_activity = None
+    agent_state.red_team_last_activity = None
+    agent_state.judge_message_count = 0
+    agent_state.target_message_count = 0
+    agent_state.red_team_message_count = 0
+    agent_state.judge_errors = []
+    agent_state.target_errors = []
+    agent_state.red_team_errors = []
+    
+    # Broadcast status update
+    status = await get_agents_status()
+    await connection_manager.broadcast(status.dict())
     
     return {
         "success": True,
         "message": f"Stopped agents: {', '.join(stopped) if stopped else 'none were running'}",
         "stopped": stopped
+    }
+
+
+@app.websocket("/api/agents/status/stream")
+async def websocket_status_stream(websocket: WebSocket):
+    """
+    WebSocket endpoint for real-time agent status updates
+    
+    Clients connect to receive periodic status updates without polling.
+    Automatically sends status every 2 seconds.
+    """
+    await connection_manager.connect(websocket)
+    try:
+        # Send initial status
+        status = await get_agents_status()
+        await websocket.send_json(status.dict())
+        
+        # Keep connection alive and handle ping/pong
+        while True:
+            try:
+                # Wait for client message (ping) or timeout
+                data = await asyncio.wait_for(websocket.receive_text(), timeout=30.0)
+                # Echo ping back as pong
+                if data == "ping":
+                    await websocket.send_text("pong")
+            except asyncio.TimeoutError:
+                # Send heartbeat
+                await websocket.send_text("heartbeat")
+    except WebSocketDisconnect:
+        connection_manager.disconnect(websocket)
+    except Exception as e:
+        print(f"WebSocket error: {e}")
+        connection_manager.disconnect(websocket)
+
+
+@app.get("/api/agents/{agent_type}/health", tags=["Agents"])
+async def get_agent_health(agent_type: str):
+    """
+    Get detailed health check for a specific agent
+    
+    Args:
+        agent_type: Type of agent (judge, target, red_team)
+        
+    Returns:
+        Detailed health information for the agent
+    """
+    if agent_type == "judge":
+        process = agent_state.judge_process
+        address = agent_state.judge_address
+        last_activity = agent_state.judge_last_activity
+        message_count = agent_state.judge_message_count
+        errors = agent_state.judge_errors
+    elif agent_type == "target":
+        process = agent_state.target_process
+        address = agent_state.target_address
+        last_activity = agent_state.target_last_activity
+        message_count = agent_state.target_message_count
+        errors = agent_state.target_errors
+    elif agent_type == "red_team":
+        process = agent_state.red_team_process
+        address = agent_state.red_team_address
+        last_activity = agent_state.red_team_last_activity
+        message_count = agent_state.red_team_message_count
+        errors = agent_state.red_team_errors
+    else:
+        raise HTTPException(status_code=404, detail=f"Unknown agent type: {agent_type}")
+    
+    health = await check_process_health(process)
+    
+    return {
+        "agent_type": agent_type,
+        "is_running": health != "down",
+        "health_status": health,
+        "address": address,
+        "last_activity": last_activity.isoformat() if last_activity else None,
+        "message_count": message_count,
+        "recent_errors": errors[-10:] if errors else [],
+        "error_count": len(errors),
+        "connection_status": get_connection_status(agent_type)
     }
 
 

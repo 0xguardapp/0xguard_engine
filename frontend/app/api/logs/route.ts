@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { readFile, access } from 'fs/promises';
 import { join } from 'path';
 import { constants } from 'fs';
+import { getRedisClient, isRedisAvailable } from '@/lib/redis';
 
 /**
  * Validates log entry structure
@@ -38,12 +39,14 @@ export async function GET(request: NextRequest) {
     const sinceParam = searchParams.get('since');
     const typeFilter = searchParams.get('type');
     const actorFilter = searchParams.get('actor');
+    const auditIdFilter = searchParams.get('audit_id');
     
     console.log('[GET /api/logs] Query params:', { 
       limit: limitParam, 
       since: sinceParam ? sinceParam.substring(0, 20) : null,
       type: typeFilter,
-      actor: actorFilter
+      actor: actorFilter,
+      audit_id: auditIdFilter
     });
 
     // Validate limit parameter
@@ -87,75 +90,110 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Read logs.json from project root (one level up from frontend)
-    const logsPath = join(process.cwd(), '..', 'logs.json');
-    console.log('[GET /api/logs] Reading logs from:', logsPath);
-
-    // Check if file exists and is readable
+    // Try Redis first (preferred method)
+    let logs: any[] = [];
+    let useRedis = false;
+    
     try {
-      await access(logsPath, constants.F_OK | constants.R_OK);
-    } catch (accessError) {
-      console.log('[GET /api/logs] Logs file does not exist or is not readable, returning empty array');
-      return NextResponse.json(
-        {
-          logs: [],
-          total: 0,
-          message: 'Logs file not found or not accessible'
-        },
-        {
-          status: 200,
-          headers: {
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Pragma': 'no-cache',
-            'Expires': '0',
-            'X-Response-Time': `${Date.now() - startTime}ms`
+      if (await isRedisAvailable()) {
+        useRedis = true;
+        const client = await getRedisClient();
+        if (client) {
+          // Determine Redis key based on audit_id filter
+          const key = auditIdFilter ? `logs:audit:${auditIdFilter}` : 'logs:global';
+          
+          // Get logs from Redis
+          const logsJson = await client.lRange(key, 0, limit - 1);
+          
+          // Parse JSON entries (reverse to get newest first)
+          for (const logJson of logsJson.reverse()) {
+            try {
+              const logEntry = JSON.parse(logJson);
+              logs.push(logEntry);
+            } catch (parseError) {
+              console.warn('[GET /api/logs] Failed to parse log entry from Redis:', parseError);
+            }
+          }
+          
+          console.log(`[GET /api/logs] Retrieved ${logs.length} logs from Redis (key: ${key})`);
+        }
+      }
+    } catch (redisError) {
+      console.warn('[GET /api/logs] Redis error, falling back to file:', redisError);
+      useRedis = false;
+    }
+    
+    // Fallback to file-based logging if Redis is not available
+    if (!useRedis) {
+      // Read logs.json from project root (one level up from frontend)
+      const logsPath = join(process.cwd(), '..', 'logs.json');
+      console.log('[GET /api/logs] Reading logs from file:', logsPath);
+
+      // Check if file exists and is readable
+      try {
+        await access(logsPath, constants.F_OK | constants.R_OK);
+      } catch (accessError) {
+        console.log('[GET /api/logs] Logs file does not exist or is not readable, returning empty array');
+        return NextResponse.json(
+          {
+            logs: [],
+            total: 0,
+            message: 'Logs file not found or not accessible'
           },
-        }
-      );
-    }
-
-    // Read and parse logs file
-    let fileContents: string;
-    try {
-      fileContents = await readFile(logsPath, 'utf-8');
-      console.log('[GET /api/logs] File read successfully, size:', fileContents.length, 'bytes');
-    } catch (readError) {
-      console.error('[GET /api/logs] Error reading logs file:', readError);
-      return NextResponse.json(
-        {
-          error: 'Failed to read logs file',
-          message: readError instanceof Error ? readError.message : 'Unknown error'
-        },
-        {
-          status: 500,
-          headers: {
-            'X-Response-Time': `${Date.now() - startTime}ms`
+          {
+            status: 200,
+            headers: {
+              'Cache-Control': 'no-cache, no-store, must-revalidate',
+              'Pragma': 'no-cache',
+              'Expires': '0',
+              'X-Response-Time': `${Date.now() - startTime}ms`
+            },
           }
-        }
-      );
-    }
+        );
+      }
 
-    // Parse JSON
-    let logs: any[];
-    try {
-      const parsed = JSON.parse(fileContents);
-      // Ensure it's an array
-      logs = Array.isArray(parsed) ? parsed : [];
-      console.log('[GET /api/logs] Parsed', logs.length, 'log entries');
-    } catch (parseError) {
-      console.error('[GET /api/logs] JSON parse error:', parseError);
-      return NextResponse.json(
-        {
-          error: 'Failed to parse logs file',
-          message: parseError instanceof Error ? parseError.message : 'Invalid JSON format'
-        },
-        {
-          status: 500,
-          headers: {
-            'X-Response-Time': `${Date.now() - startTime}ms`
+      // Read and parse logs file
+      let fileContents: string;
+      try {
+        fileContents = await readFile(logsPath, 'utf-8');
+        console.log('[GET /api/logs] File read successfully, size:', fileContents.length, 'bytes');
+      } catch (readError) {
+        console.error('[GET /api/logs] Error reading logs file:', readError);
+        return NextResponse.json(
+          {
+            error: 'Failed to read logs file',
+            message: readError instanceof Error ? readError.message : 'Unknown error'
+          },
+          {
+            status: 500,
+            headers: {
+              'X-Response-Time': `${Date.now() - startTime}ms`
+            }
           }
-        }
-      );
+        );
+      }
+
+      // Parse JSON
+      try {
+        const parsed = JSON.parse(fileContents);
+        // Ensure it's an array
+        logs = Array.isArray(parsed) ? parsed : [];
+        console.log('[GET /api/logs] Parsed', logs.length, 'log entries from file');
+      } catch (parseError) {
+        console.error('[GET /api/logs] JSON parse error:', parseError);
+        return NextResponse.json(
+          {
+            error: 'Failed to parse logs file',
+            message: parseError instanceof Error ? parseError.message : 'Invalid JSON format'
+          },
+          {
+            status: 500,
+            headers: {
+              'X-Response-Time': `${Date.now() - startTime}ms`
+            }
+          }
+        );
+      }
     }
 
     // Validate and filter log entries
@@ -195,6 +233,15 @@ export async function GET(request: NextRequest) {
         log.actor.toLowerCase().includes(actorFilter.toLowerCase())
       );
       console.log(`[GET /api/logs] Filtered by actor "${actorFilter}": ${beforeCount} -> ${validLogs.length}`);
+    }
+
+    // Filter by audit_id if provided (only needed when reading from file or global Redis key)
+    if (auditIdFilter && !useRedis) {
+      const beforeCount = validLogs.length;
+      validLogs = validLogs.filter(log => 
+        log.audit_id === auditIdFilter
+      );
+      console.log(`[GET /api/logs] Filtered by audit_id "${auditIdFilter}": ${beforeCount} -> ${validLogs.length}`);
     }
 
     // Apply limit (get most recent logs)

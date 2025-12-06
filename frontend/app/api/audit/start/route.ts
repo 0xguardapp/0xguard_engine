@@ -136,13 +136,62 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('[POST /api/audit/start] Validation passed, calling agent API...');
+    console.log('[POST /api/audit/start] Validation passed, checking agent API health...');
 
     // Call agent backend API to start agents
     const agentApiUrl = process.env.AGENT_API_URL || 'http://localhost:8003';
     const timeout = 30000; // 30 second timeout
     
     console.log(`[POST /api/audit/start] Agent API URL: ${agentApiUrl}`);
+    
+    // Health check before attempting to start agents
+    try {
+      const healthController = new AbortController();
+      const healthTimeoutId = setTimeout(() => healthController.abort(), 5000); // 5s timeout for health check
+      
+      const healthResponse = await fetch(`${agentApiUrl}/health`, {
+        method: 'GET',
+        headers: { 'User-Agent': '0xGuard-Frontend/1.0' },
+        signal: healthController.signal
+      });
+      
+      clearTimeout(healthTimeoutId);
+      
+      if (!healthResponse.ok) {
+        console.warn(`[POST /api/audit/start] Agent API health check returned status ${healthResponse.status}`);
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Agent API server is not healthy',
+            message: `Health check returned status ${healthResponse.status}. Please ensure the agent API server is running.`,
+            agentApiUrl
+          },
+          { status: 503 }
+        );
+      }
+      
+      const healthData = await healthResponse.json();
+      console.log('[POST /api/audit/start] Agent API health check passed:', healthData);
+    } catch (healthError) {
+      if (healthError instanceof Error && healthError.name === 'AbortError') {
+        console.error('[POST /api/audit/start] Agent API health check timeout');
+      } else {
+        console.error('[POST /api/audit/start] Agent API health check failed:', healthError);
+      }
+      
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Agent API server is unavailable',
+          message: 'Unable to connect to agent API server. Please ensure it is running on port 8003.',
+          agentApiUrl,
+          details: healthError instanceof Error ? healthError.message : 'Connection failed'
+        },
+        { status: 503 }
+      );
+    }
+    
+    console.log('[POST /api/audit/start] Agent API health check passed, starting agents...');
     
     try {
       const controller = new AbortController();

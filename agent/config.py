@@ -51,6 +51,15 @@ class Config:
     MIN_CONFIDENCE_THRESHOLD: float = 0.8
     REQUIRE_PROOF: bool = True
     
+    # Redis Configuration
+    REDIS_HOST: str = os.getenv("REDIS_HOST", "localhost")
+    REDIS_PORT: int = int(os.getenv("REDIS_PORT", "6379"))
+    REDIS_DB: int = int(os.getenv("REDIS_DB", "0"))
+    
+    # Midnight Configuration
+    MIDNIGHT_API_URL: str = os.getenv("MIDNIGHT_API_URL", "http://localhost:8000")
+    MIDNIGHT_SIMULATION_MODE: bool = os.getenv("MIDNIGHT_SIMULATION_MODE", "false").lower() == "true"
+    
     def validate(self):
         """
         Validate all required config values are set.
