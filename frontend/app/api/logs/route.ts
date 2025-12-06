@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { readFile, access } from 'fs/promises';
 import { join } from 'path';
 import { constants } from 'fs';
-import { getRedisClient, isRedisAvailable } from '@/lib/redis';
 
 /**
  * Validates log entry structure
@@ -90,42 +89,10 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Try Redis first (preferred method)
+    // Read logs from file-based storage
     let logs: any[] = [];
-    let useRedis = false;
     
-    try {
-      if (await isRedisAvailable()) {
-        useRedis = true;
-        const client = await getRedisClient();
-        if (client) {
-          // Determine Redis key based on audit_id filter
-          const key = auditIdFilter ? `logs:audit:${auditIdFilter}` : 'logs:global';
-          
-          // Get logs from Redis
-          const logsJson = await client.lRange(key, 0, limit - 1);
-          
-          // Parse JSON entries (reverse to get newest first)
-          for (const logJson of logsJson.reverse()) {
-            try {
-              const logEntry = JSON.parse(logJson);
-              logs.push(logEntry);
-            } catch (parseError) {
-              console.warn('[GET /api/logs] Failed to parse log entry from Redis:', parseError);
-            }
-          }
-          
-          console.log(`[GET /api/logs] Retrieved ${logs.length} logs from Redis (key: ${key})`);
-        }
-      }
-    } catch (redisError) {
-      console.warn('[GET /api/logs] Redis error, falling back to file:', redisError);
-      useRedis = false;
-    }
-    
-    // Fallback to file-based logging if Redis is not available
-    if (!useRedis) {
-      // Read logs.json from project root (one level up from frontend)
+    // Read logs.json from project root (one level up from frontend)
       const logsPath = join(process.cwd(), '..', 'logs.json');
       console.log('[GET /api/logs] Reading logs from file:', logsPath);
 
@@ -194,7 +161,6 @@ export async function GET(request: NextRequest) {
           }
         );
       }
-    }
 
     // Validate and filter log entries
     let validLogs = logs.filter(log => {
@@ -235,8 +201,8 @@ export async function GET(request: NextRequest) {
       console.log(`[GET /api/logs] Filtered by actor "${actorFilter}": ${beforeCount} -> ${validLogs.length}`);
     }
 
-    // Filter by audit_id if provided (only needed when reading from file or global Redis key)
-    if (auditIdFilter && !useRedis) {
+    // Filter by audit_id if provided
+    if (auditIdFilter) {
       const beforeCount = validLogs.length;
       validLogs = validLogs.filter(log => 
         log.audit_id === auditIdFilter

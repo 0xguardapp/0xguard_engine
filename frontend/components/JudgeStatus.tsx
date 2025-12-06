@@ -4,7 +4,9 @@ import React from 'react';
 import { useAgentStatusWebSocket } from '@/hooks/useAgentStatusWebSocket';
 
 export const JudgeStatus = () => {
-  const { status, connectionStatus, isLoading, error } = useAgentStatusWebSocket();
+  const { status, connectionStatus, isLoading, error } = useAgentStatusWebSocket({
+    enabled: true,
+  });
   const judgeStatus = status?.judge;
 
   const isRunning = judgeStatus?.is_running ?? false;

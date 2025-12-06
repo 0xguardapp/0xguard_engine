@@ -12,6 +12,7 @@ import { JudgeStatus } from '@/components/JudgeStatus';
 import Terminal from '@/components/Terminal';
 import HivemindList from '@/components/HivemindList';
 import ZKProofsList from '@/components/ZKProofsList';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { useLogs } from '@/hooks/useLogs';
 import { useToast } from '@/hooks/useToast';
 
@@ -97,19 +98,43 @@ export default function AuditDetailPage() {
               <h2 className="text-lg font-semibold mb-4 tracking-tight">Active Agents</h2>
               <div className="space-y-2">
                 {/* Red Team Status */}
-                <div className="bg-[#09090b] border border-[#27272a] rounded-lg p-4 hover:border-gray-700 transition-all duration-200">
-                  <RedTeamStatus />
-                </div>
+                <ErrorBoundary
+                  fallback={
+                    <div className="bg-[#09090b] border border-[#27272a] rounded-lg p-4 text-xs text-gray-400">
+                      Status unavailable
+                    </div>
+                  }
+                >
+                  <div className="bg-[#09090b] border border-[#27272a] rounded-lg p-4 hover:border-gray-700 transition-all duration-200">
+                    <RedTeamStatus />
+                  </div>
+                </ErrorBoundary>
 
                 {/* Target Status */}
-                <div className="bg-[#09090b] border border-[#27272a] rounded-lg p-4 hover:border-gray-700 transition-all duration-200">
-                  <TargetStatus />
-                </div>
+                <ErrorBoundary
+                  fallback={
+                    <div className="bg-[#09090b] border border-[#27272a] rounded-lg p-4 text-xs text-gray-400">
+                      Status unavailable
+                    </div>
+                  }
+                >
+                  <div className="bg-[#09090b] border border-[#27272a] rounded-lg p-4 hover:border-gray-700 transition-all duration-200">
+                    <TargetStatus />
+                  </div>
+                </ErrorBoundary>
 
                 {/* Judge Status */}
-                <div className="bg-[#09090b] border border-[#27272a] rounded-lg p-4 hover:border-gray-700 transition-all duration-200">
-                  <JudgeStatus />
-                </div>
+                <ErrorBoundary
+                  fallback={
+                    <div className="bg-[#09090b] border border-[#27272a] rounded-lg p-4 text-xs text-gray-400">
+                      Status unavailable
+                    </div>
+                  }
+                >
+                  <div className="bg-[#09090b] border border-[#27272a] rounded-lg p-4 hover:border-gray-700 transition-all duration-200">
+                    <JudgeStatus />
+                  </div>
+                </ErrorBoundary>
               </div>
             </div>
 
