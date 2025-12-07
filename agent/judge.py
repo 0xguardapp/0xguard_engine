@@ -49,7 +49,11 @@ config = get_config()
 
 # ASI.Cloud API Configuration (from config)
 ASI_API_KEY = config.ASI_API_KEY
-ASI_API_URL = os.getenv("ASI_API_URL", "https://api.asi.cloud/v1/chat/completions")
+ASI_API_URL = os.getenv("ASI_API_URL", "https://api.asi1.ai/v1/chat/completions")
+
+# Gemini API Configuration (fallback LLM)
+GEMINI_API_KEY = config.GEMINI_API_KEY
+GEMINI_API_URL = os.getenv("GEMINI_API_URL", "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent")
 
 # AgentVerse API Configuration (from config)
 AGENTVERSE_KEY = config.AGENTVERSE_KEY
@@ -66,6 +70,65 @@ class AttackMessage(Model):
 
 # SECRET_KEY from target - use configuration
 SECRET_KEY = config.TARGET_SECRET_KEY
+
+
+async def call_gemini_api(prompt: str) -> str:
+    """
+    Call Google Gemini API as a fallback LLM.
+    
+    Args:
+        prompt: The prompt to send to Gemini
+        
+    Returns:
+        str: Response text from Gemini, or empty string if failed
+    """
+    if not GEMINI_API_KEY or not GEMINI_API_KEY.strip():
+        return ""
+    
+    try:
+        log("Gemini", "Calling Gemini API...", "🤖", "info")
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.post(
+                f"{GEMINI_API_URL}?key={GEMINI_API_KEY}",
+                headers={
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "contents": [{
+                        "parts": [{
+                            "text": prompt
+                        }]
+                    }],
+                    "generationConfig": {
+                        "temperature": 0.3,
+                        "maxOutputTokens": 200,
+                    }
+                },
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                # Extract text from Gemini response
+                candidates = data.get("candidates", [])
+                if candidates and len(candidates) > 0:
+                    content = candidates[0].get("content", {})
+                    parts = content.get("parts", [])
+                    if parts and len(parts) > 0:
+                        text = parts[0].get("text", "").strip()
+                        if text:
+                            log("Gemini", "Response received from Gemini", "🤖", "info")
+                            return text
+            else:
+                log("Gemini", f"API error: {response.status_code} - {response.text}", "🤖", "warning")
+                
+    except httpx.TimeoutException:
+        log("Gemini", "API request timeout", "🤖", "warning")
+    except httpx.RequestError as e:
+        log("Gemini", f"API request failed: {str(e)}", "🤖", "warning")
+    except Exception as e:
+        log("Gemini", f"Unexpected error: {str(e)}", "🤖", "warning")
+    
+    return ""
 
 
 async def analyze_vulnerability_with_asi(exploit_payload: str, response_message: str) -> dict:
@@ -91,9 +154,29 @@ Analyze this vulnerability and provide:
 
 Return JSON format: {{"risk_score": number, "severity": "string", "recommendation": "string"}}"""
     
-    # Skip API call if ASI_API_KEY is not configured
+    # Try ASI.Cloud first, then Gemini, then fallback
     if not ASI_API_KEY or not ASI_API_KEY.strip():
-        log("ASI.Cloud", "ASI_API_KEY not configured, using default risk assessment", "🧠", "info")
+        # Try Gemini as fallback
+        if GEMINI_API_KEY and GEMINI_API_KEY.strip():
+            log("ASI.Cloud", "ASI_API_KEY not configured, trying Gemini fallback", "🧠", "info")
+            gemini_response = await call_gemini_api(prompt)
+            if gemini_response:
+                import json
+                try:
+                    # Extract JSON from markdown code blocks if present
+                    analysis_text = gemini_response
+                    if "```json" in analysis_text:
+                        analysis_text = analysis_text.split("```json")[1].split("```")[0].strip()
+                    elif "```" in analysis_text:
+                        analysis_text = analysis_text.split("```")[1].split("```")[0].strip()
+                    analysis = json.loads(analysis_text)
+                    log("Gemini", "Successfully analyzed vulnerability using Gemini", "🤖", "info")
+                    return analysis
+                except json.JSONDecodeError:
+                    log("Gemini", "Failed to parse JSON from Gemini response, using default", "🤖", "warning")
+        
+        # Final fallback to hardcoded values
+        log("ASI.Cloud", "No LLM available, using default risk assessment", "🧠", "info")
         return {
             "risk_score": 75,
             "severity": "HIGH",
@@ -111,7 +194,7 @@ Return JSON format: {{"risk_score": number, "severity": "string", "recommendatio
                     "Content-Type": "application/json",
                 },
                 json={
-                    "model": "gpt-4",
+                    "model": "asi1-mini",
                     "messages": [
                         {
                             "role": "user",
@@ -510,18 +593,24 @@ def create_judge_agent(port: int = None) -> Agent:
     # Proof Verification Methods
     # ============================================================================
     
-    @judge.on_query()
-    async def verify_audit_proof_handler(ctx: Context, query: dict):
+    # Define a simple query model for on_query
+    class QueryRequest(Model):
+        method: str = ""
+        proof_id: str = ""
+        auditor_id: str = ""
+    
+    @judge.on_query(model=QueryRequest)
+    async def verify_audit_proof_handler(ctx: Context, query: QueryRequest):
         """
         Query handler for proof verification.
-        Query format: {"method": "verifyAuditProof", "proofId": "...", "auditorId": "..."}
+        Query format: {"method": "verifyAuditProof", "proof_id": "...", "auditor_id": "..."}
         """
-        if query.get("method") == "verifyAuditProof":
-            proof_id = query.get("proofId")
-            auditor_id = query.get("auditorId")
+        if query.method == "verifyAuditProof":
+            proof_id = query.proof_id
+            auditor_id = query.auditor_id
             
             if not proof_id:
-                return {"error": "proofId is required"}
+                return {"error": "proof_id is required"}
             
             result = await verify_audit_proof(proof_id, auditor_id)
             state["verified_proofs"][proof_id] = result.to_dict()

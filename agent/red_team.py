@@ -33,7 +33,11 @@ config = get_config()
 
 # ASI.Cloud API Configuration (from config)
 ASI_API_KEY = config.ASI_API_KEY
-ASI_API_URL = os.getenv("ASI_API_URL", "https://api.asi.cloud/v1/chat/completions")
+ASI_API_URL = os.getenv("ASI_API_URL", "https://api.asi1.ai/v1/chat/completions")
+
+# Gemini API Configuration (fallback LLM)
+GEMINI_API_KEY = config.GEMINI_API_KEY
+GEMINI_API_URL = os.getenv("GEMINI_API_URL", "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent")
 
 # AgentVerse API Configuration (from config)
 AGENTVERSE_KEY = config.AGENTVERSE_KEY
@@ -48,6 +52,65 @@ class ResponseMessage(Model):
     message: str
 
 
+async def call_gemini_api(prompt: str) -> str:
+    """
+    Call Google Gemini API as a fallback LLM.
+    
+    Args:
+        prompt: The prompt to send to Gemini
+        
+    Returns:
+        str: Response text from Gemini, or empty string if failed
+    """
+    if not GEMINI_API_KEY or not GEMINI_API_KEY.strip():
+        return ""
+    
+    try:
+        log("Gemini", "Calling Gemini API...", "🤖", "info")
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.post(
+                f"{GEMINI_API_URL}?key={GEMINI_API_KEY}",
+                headers={
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "contents": [{
+                        "parts": [{
+                            "text": prompt
+                        }]
+                    }],
+                    "generationConfig": {
+                        "temperature": 0.7,
+                        "maxOutputTokens": 100,
+                    }
+                },
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                # Extract text from Gemini response
+                candidates = data.get("candidates", [])
+                if candidates and len(candidates) > 0:
+                    content = candidates[0].get("content", {})
+                    parts = content.get("parts", [])
+                    if parts and len(parts) > 0:
+                        text = parts[0].get("text", "").strip()
+                        if text:
+                            log("Gemini", "Response received from Gemini", "🤖", "info")
+                            return text
+            else:
+                log("Gemini", f"API error: {response.status_code} - {response.text}", "🤖", "warning")
+                
+    except httpx.TimeoutException:
+        log("Gemini", "API request timeout", "🤖", "warning")
+    except httpx.RequestError as e:
+        log("Gemini", f"API request failed: {str(e)}", "🤖", "warning")
+    except Exception as e:
+        log("Gemini", f"Unexpected error: {str(e)}", "🤖", "warning")
+    
+    return ""
+
+
 async def generate_attack() -> str:
     """
     Generate a unique SQL injection attack string using ASI.Cloud API.
@@ -57,9 +120,20 @@ async def generate_attack() -> str:
     """
     prompt = "You are a penetration tester. Generate a unique SQL injection string. Return only the string."
     
-    # Skip API call if ASI_API_KEY is not configured
+    # Try ASI.Cloud first, then Gemini, then fallback
     if not ASI_API_KEY or not ASI_API_KEY.strip():
-        log("ASI.Cloud", "ASI_API_KEY not configured, using fallback payload", "🧠", "info")
+        # Try Gemini as fallback
+        if GEMINI_API_KEY and GEMINI_API_KEY.strip():
+            log("ASI.Cloud", "ASI_API_KEY not configured, trying Gemini fallback", "🧠", "info")
+            gemini_response = await call_gemini_api(prompt)
+            if gemini_response:
+                # Clean up the response (remove quotes, extra whitespace)
+                attack_string = gemini_response.strip().strip('"').strip("'")
+                log("Gemini", f"Generated attack using Gemini: {attack_string}", "🤖", "info")
+                return attack_string
+        
+        # Final fallback to hardcoded payload
+        log("ASI.Cloud", "No LLM available, using fallback payload", "🧠", "info")
         return "'; DROP TABLE users; --"  # Fallback SQL injection payload
     
     try:
@@ -73,7 +147,7 @@ async def generate_attack() -> str:
                     "Content-Type": "application/json",
                 },
                 json={
-                    "model": "gpt-4",
+                    "model": "asi1-mini",
                     "messages": [
                         {
                             "role": "user",

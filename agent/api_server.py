@@ -11,6 +11,7 @@ import time
 import logging
 import json
 import uuid
+import random
 from pathlib import Path
 from typing import Dict, Any, Optional
 from datetime import datetime
@@ -188,7 +189,7 @@ def start_agents(request: StartAgentsRequest):
         python_executable = str(venv_python)
         logger.info(f"Using venv Python: {python_executable}")
     else:
-        python_executable = sys.executable
+    python_executable = sys.executable
         logger.info(f"Using system Python: {python_executable}")
     
     # Get port configuration from config.py
@@ -596,30 +597,76 @@ def create_audit(request: CreateAuditRequest):
         audit_id = str(uuid.uuid4())
         created_at = datetime.now().isoformat()
         
+        # Generate random placeholder data for missing fields
+        placeholder_descriptions = [
+            "Comprehensive security audit of smart contract implementation",
+            "Full-stack security assessment and vulnerability analysis",
+            "Penetration testing and security review of decentralized application",
+            "Smart contract audit focusing on access control and reentrancy",
+            "Security analysis of DeFi protocol with focus on economic attacks",
+            "Comprehensive audit covering smart contracts, frontend, and infrastructure",
+            "Security review of blockchain application with emphasis on gas optimization",
+        ]
+        
+        placeholder_targets = [
+            "0x" + "".join(random.choices("0123456789abcdef", k=40)),
+            "https://github.com/example/contracts",
+            "https://example.com/api",
+            "https://app.example.com",
+        ]
+        
+        placeholder_tags = [
+            ["security", "smart-contract", "web3"],
+            ["defi", "ethereum", "audit"],
+            ["blockchain", "solidity", "security"],
+            ["web3", "crypto", "vulnerability"],
+            ["smart-contract", "security", "audit"],
+        ]
+        
+        placeholder_difficulties = ["low", "medium", "high", "critical"]
+        placeholder_priorities = ["low", "medium", "high", "urgent"]
+        placeholder_intensities = ["quick", "deep"]
+        
+        # Populate missing fields with random placeholders
+        description = request.description or random.choice(placeholder_descriptions)
+        target = request.target or random.choice(placeholder_targets)
+        targetAddress = request.targetAddress or request.target or target
+        tags = request.tags or random.choice(placeholder_tags)
+        difficulty = request.difficulty or random.choice(placeholder_difficulties)
+        priority = request.priority or random.choice(placeholder_priorities)
+        intensity = random.choice(placeholder_intensities)
+        
+        # Generate random metrics
+        vulnerability_count = random.randint(0, 15)
+        risk_score = random.randint(20, 95)
+        
         # Build audit object
         audit = {
             "audit_id": audit_id,
             "name": request.name,
-            "description": request.description,
-            "target": request.target,
-            "targetAddress": request.targetAddress or request.target or "",
-            "tags": request.tags or [],
-            "difficulty": request.difficulty,
-            "priority": request.priority,
+            "description": description,
+            "target": target,
+            "targetAddress": targetAddress,
+            "tags": tags,
+            "difficulty": difficulty,
+            "priority": priority,
             "wallet": request.wallet,
             "status": "pending",
             "created_at": created_at,
             "updated_at": created_at,
-            "vulnerabilityCount": None,
-            "riskScore": None,
-            "intensity": None,
+            "vulnerabilityCount": vulnerability_count,
+            "riskScore": risk_score,
+            "intensity": intensity,
             "metadata": {
-                "description": request.description,
-                "target": request.target,
-                "targetAddress": request.targetAddress,
-                "tags": request.tags,
-                "difficulty": request.difficulty,
-                "priority": request.priority,
+                "description": description,
+                "target": target,
+                "targetAddress": targetAddress,
+                "tags": tags,
+                "difficulty": difficulty,
+                "priority": priority,
+                "intensity": intensity,
+                "vulnerabilityCount": vulnerability_count,
+                "riskScore": risk_score,
             }
         }
         

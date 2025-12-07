@@ -24,6 +24,7 @@ _ASI_API_KEY = os.getenv("ASI_API_KEY")
 _AGENTVERSE_KEY = os.getenv("AGENTVERSE_KEY")
 _MAILBOX_KEY = os.getenv("MAILBOX_KEY")
 _TARGET_SECRET_KEY = os.getenv("TARGET_SECRET_KEY")
+_GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 # Validate required keys - use warnings instead of hard failures to allow graceful degradation
 # This allows agents to start even if some keys are missing (they'll log warnings and use fallbacks)
@@ -36,7 +37,11 @@ if not _AGENTVERSE_KEY:
 
 if not _ASI_API_KEY:
     _logger.warning("⚠️  ASI_API_KEY missing. Set in agent/.env - ASI.Cloud features will be disabled")
-    _ASI_API_KEY = ""  # Allow empty, agents will use fallback payloads
+    _ASI_API_KEY = ""  # Allow empty, agents will use Gemini or fallback payloads
+
+if not _GEMINI_API_KEY:
+    _logger.warning("⚠️  GEMINI_API_KEY missing. Set in agent/.env - Gemini fallback will be disabled")
+    _GEMINI_API_KEY = ""  # Allow empty, will use hardcoded fallbacks
 
 if not _TARGET_SECRET_KEY:
     _logger.warning("⚠️  TARGET_SECRET_KEY missing. Set in agent/.env - Using default seed")
@@ -71,6 +76,7 @@ class Config:
     AGENTVERSE_KEY: str = _AGENTVERSE_KEY or ""
     MAILBOX_KEY: str = _MAILBOX_KEY or ""
     TARGET_SECRET_KEY: str = _TARGET_SECRET_KEY or ""
+    GEMINI_API_KEY: str = _GEMINI_API_KEY or ""
     
     # Bounty Rates (in tokens)
     BOUNTY_LOW: int = 50
