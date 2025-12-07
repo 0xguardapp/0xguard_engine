@@ -8,6 +8,7 @@ on the Midnight Network, along with wallet management utilities.
 import os
 import json
 import asyncio
+import time
 from pathlib import Path
 from typing import Optional, Dict, Any, List
 from contextlib import asynccontextmanager
@@ -103,6 +104,41 @@ class AppState:
 
 
 app_state = AppState()
+
+
+def submit_proof(audit_id: str, exploit_hash: str, proof_bytes: Optional[bytes]) -> Dict[str, Any]:
+    """
+    Prepare and validate proof submission payload.
+    Ensures all fields are properly typed to prevent BigInt conversion errors.
+    
+    Args:
+        audit_id: Unique audit identifier
+        exploit_hash: Hash of the exploit string
+        proof_bytes: Proof data as bytes (will be hex-encoded)
+    
+    Returns:
+        Dict with validated payload ready for submission
+    
+    Raises:
+        ValueError: If proof_bytes is None or invalid
+    """
+    # Ensure proof_bytes exists and is encoded correctly
+    if proof_bytes is None:
+        raise ValueError("submit_proof: proof_bytes cannot be None")
+    
+    payload = {
+        "audit_id": str(audit_id),
+        "exploit_hash": str(exploit_hash),
+        "timestamp": int(time.time()),  # MUST be int for BigInt conversion
+        "proof_data": proof_bytes.hex() if isinstance(proof_bytes, bytes) else str(proof_bytes)
+    }
+    
+    # Debug log to ensure no undefined fields
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"MIDNIGHT SUBMISSION PAYLOAD: {payload}")
+    
+    return payload
 
 
 @asynccontextmanager
@@ -237,11 +273,82 @@ async def submit_audit(request: SubmitAuditRequest):
             status_code=400, detail="Contract not initialized. Call /api/init first."
         )
 
+    # Validate required fields to prevent BigInt conversion errors
+    if request.threshold is None:
+        raise HTTPException(
+            status_code=400, detail="threshold cannot be None (required for BigInt conversion)"
+        )
+    
+    if not isinstance(request.threshold, int):
+        raise HTTPException(
+            status_code=400, detail=f"threshold must be an integer, got {type(request.threshold).__name__}"
+        )
+    
+    if not request.witness:
+        raise HTTPException(
+            status_code=400, detail="witness cannot be None or empty"
+        )
+    
+    if "risk_score" not in request.witness:
+        raise HTTPException(
+            status_code=400, detail="witness.risk_score is required (cannot be None for BigInt conversion)"
+        )
+    
+    risk_score = request.witness.get("risk_score")
+    if risk_score is None:
+        raise HTTPException(
+            status_code=400, detail="witness.risk_score cannot be None (required for BigInt conversion)"
+        )
+    
+    if not isinstance(risk_score, int):
+        raise HTTPException(
+            status_code=400, detail=f"witness.risk_score must be an integer, got {type(risk_score).__name__}"
+        )
+    
+    if "exploit_string" not in request.witness:
+        raise HTTPException(
+            status_code=400, detail="witness.exploit_string is required"
+        )
+    
+    exploit_string = request.witness.get("exploit_string")
+    if exploit_string is None:
+        raise HTTPException(
+            status_code=400, detail="witness.exploit_string cannot be None"
+        )
+
+    # Ensure threshold and risk_score are integers (not floats) for BigInt conversion
+    # Convert to int if they're floats
+    threshold = int(request.threshold)
+    risk_score_int = int(risk_score)
+    
+    # Prepare validated payload
+    validated_payload = {
+        "audit_id": str(request.audit_id),
+        "auditor_addr": str(request.auditor_addr),
+        "threshold": threshold,  # MUST be int for BigInt conversion
+        "witness": {
+            "exploit_string": str(exploit_string),
+            "risk_score": risk_score_int,  # MUST be int for BigInt conversion
+        }
+    }
+    
+    # Debug log to ensure no undefined fields
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"MIDNIGHT SUBMISSION PAYLOAD: {validated_payload}")
+
     try:
-        result = await run_ts_contract_operation("submit_audit", request.dict())
+        result = await run_ts_contract_operation("submit_audit", validated_payload)
         return SubmitAuditResponse(**result)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        error_msg = str(e)
+        logger.error(f"Failed to submit audit: {error_msg}")
+        # Return structured error response
+        return SubmitAuditResponse(
+            success=False,
+            error=error_msg,
+            ledger_state={}
+        )
 
 
 @app.post("/api/query-audit", response_model=QueryAuditResponse, tags=["Contract"])

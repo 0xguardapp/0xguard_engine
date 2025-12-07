@@ -9,6 +9,7 @@ import json
 import os
 import hashlib
 import time
+import requests
 from pathlib import Path
 from datetime import datetime
 from typing import Optional, Dict, Any, Set, Tuple, List
@@ -26,6 +27,7 @@ from mcp_helper import get_mcp_messages, save_mcp_message, MEMBASE_ENABLED
 UNIBASE_ACCOUNT = os.getenv("UNIBASE_ACCOUNT", "").strip()
 BOUNTY_TOKEN_ADDRESS = os.getenv("BOUNTY_TOKEN_ADDRESS", "").strip()
 UNIBASE_RPC_URL = os.getenv("UNIBASE_RPC_URL", "https://testnet.unibase.io").strip()
+UNIBASE_PRIVATE_KEY = os.getenv("UNIBASE_PRIVATE_KEY", "").strip()
 UNIBASE_CHAIN_ID = int(os.getenv("UNIBASE_CHAIN_ID", "1337"))
 
 # Validation flags
@@ -103,6 +105,79 @@ class RewardDistribution:
     chain_id: int
     status: str  # "pending", "stubbed", "completed"
     metadata: Dict[str, Any]
+
+
+# ============================================================================
+# UnibaseClient Class
+# ============================================================================
+
+class UnibaseClient:
+    """Client for interacting with Unibase network."""
+    
+    def __init__(
+        self,
+        rpc_url: Optional[str] = None,
+        account: Optional[str] = None,
+        private_key: Optional[str] = None,
+        bounty_token: Optional[str] = None,
+        chain_id: Optional[int] = None
+    ):
+        """
+        Initialize UnibaseClient with configuration.
+        
+        Args:
+            rpc_url: Unibase RPC URL (defaults to UNIBASE_RPC_URL env var)
+            account: Unibase account address (defaults to UNIBASE_ACCOUNT env var)
+            private_key: Private key for signing transactions (defaults to UNIBASE_PRIVATE_KEY env var)
+            bounty_token: Bounty token contract address (defaults to BOUNTY_TOKEN_ADDRESS env var)
+            chain_id: Chain ID (defaults to UNIBASE_CHAIN_ID env var)
+        """
+        # Load from parameters or environment variables
+        self.rpc_url = rpc_url or UNIBASE_RPC_URL
+        self.account = account or UNIBASE_ACCOUNT
+        self.private_key = private_key or UNIBASE_PRIVATE_KEY
+        self.bounty_token = bounty_token or BOUNTY_TOKEN_ADDRESS
+        self.chain_id = chain_id or UNIBASE_CHAIN_ID
+        
+        # Validate configuration at initialization
+        if not self.rpc_url:
+            raise ValueError("UNIBASE_RPC_URL is missing")
+        
+        if not self.account:
+            raise ValueError("UNIBASE_ACCOUNT is missing")
+        
+        if not self.private_key:
+            raise ValueError("UNIBASE_PRIVATE_KEY is missing")
+        
+        if not self.bounty_token:
+            raise ValueError("BOUNTY_TOKEN_ADDRESS is missing")
+    
+    def send_bounty(self, recipient: str, amount: int) -> Dict[str, Any]:
+        """
+        Send bounty reward to recipient address.
+        
+        Args:
+            recipient: Recipient address to receive the bounty
+            amount: Amount of tokens to send
+            
+        Returns:
+            dict: JSON response from the RPC endpoint
+        """
+        if not recipient:
+            raise ValueError("Recipient address missing")
+        
+        if amount is None or int(amount) <= 0:
+            raise ValueError("Invalid bounty amount")
+        
+        payload = {
+            "from": self.account,
+            "to": recipient,
+            "amount": str(int(amount)),   # ensure string, not undefined
+            "token": self.bounty_token
+        }
+        
+        res = requests.post(f"{self.rpc_url}/transfer", json=payload)
+        return res.json()
 
 
 # ============================================================================

@@ -22,7 +22,7 @@ from datetime import datetime
 # Add agent directory to path for logger import
 sys.path.insert(0, str(Path(__file__).parent))
 from logger import log
-from unibase import save_bounty_token
+from unibase import save_bounty_token, UnibaseClient
 from config import get_config
 from midnight_client import (
     submit_proof,
@@ -341,6 +341,25 @@ def create_judge_agent(port: int = None) -> Agent:
                         log("Judge", f"Proof verified on Midnight: {result.proof_hash}", "⚖️", "info", audit_id=audit_id)
                         # Structured log: zk_success
                         log("Judge", f"[zk_success] Proof submitted and verified successfully. Hash: {result.proof_hash}, Transaction ID: {transaction_id}, Status: {proof_status}, Audit ID: {audit_id}", "🎉", "info", audit_id=audit_id)
+                        
+                        # Reward Red Team after proof verification
+                        try:
+                            unibase_client = UnibaseClient()
+                            reward_tx = unibase_client.send_bounty(
+                                recipient=red_team_address,
+                                amount=100  # test amount
+                            )
+                            ctx.logger.info({
+                                "event": "bounty_dispatched",
+                                "recipient": red_team_address,
+                                "amount": 100,
+                                "tx": reward_tx
+                            })
+                        except Exception as e:
+                            ctx.logger.error({
+                                "event": "bounty_failed",
+                                "error": str(e)
+                            })
                     else:
                         proof_status = "pending"
                         # Proof submitted but not yet verified
