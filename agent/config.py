@@ -25,15 +25,22 @@ _AGENTVERSE_KEY = os.getenv("AGENTVERSE_KEY")
 _MAILBOX_KEY = os.getenv("MAILBOX_KEY")
 _TARGET_SECRET_KEY = os.getenv("TARGET_SECRET_KEY")
 
-# Validate required keys
+# Validate required keys - use warnings instead of hard failures to allow graceful degradation
+# This allows agents to start even if some keys are missing (they'll log warnings and use fallbacks)
+import logging
+_logger = logging.getLogger(__name__)
+
 if not _AGENTVERSE_KEY:
-    raise RuntimeError("AGENTVERSE_KEY missing. Set in agent/.env")
+    _logger.warning("⚠️  AGENTVERSE_KEY missing. Set in agent/.env - AgentVerse features will be disabled")
+    _AGENTVERSE_KEY = ""  # Allow empty, agents will handle gracefully
 
 if not _ASI_API_KEY:
-    raise RuntimeError("ASI_API_KEY missing. Set in agent/.env")
+    _logger.warning("⚠️  ASI_API_KEY missing. Set in agent/.env - ASI.Cloud features will be disabled")
+    _ASI_API_KEY = ""  # Allow empty, agents will use fallback payloads
 
 if not _TARGET_SECRET_KEY:
-    raise RuntimeError("TARGET_SECRET_KEY missing. Set in agent/.env")
+    _logger.warning("⚠️  TARGET_SECRET_KEY missing. Set in agent/.env - Using default seed")
+    _TARGET_SECRET_KEY = "default_agent_seed_please_set_in_env"  # Provide a default for testing
 
 
 @dataclass

@@ -57,6 +57,11 @@ async def generate_attack() -> str:
     """
     prompt = "You are a penetration tester. Generate a unique SQL injection string. Return only the string."
     
+    # Skip API call if ASI_API_KEY is not configured
+    if not ASI_API_KEY or not ASI_API_KEY.strip():
+        log("ASI.Cloud", "ASI_API_KEY not configured, using fallback payload", "🧠", "info")
+        return "'; DROP TABLE users; --"  # Fallback SQL injection payload
+    
     try:
         log("ASI.Cloud", "Generating SQL injection variant based on previous failure...", "🧠", "info")
         

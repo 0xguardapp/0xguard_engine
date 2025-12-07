@@ -957,5 +957,734 @@
     "icon": "\u274c",
     "type": "error",
     "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T05:48:03.749817",
+    "agent": "Unibase",
+    "message": "Configuration validated successfully",
+    "category": "status",
+    "icon": "\u2705",
+    "type": "info",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T05:48:03.750546",
+    "agent": "Unibase",
+    "message": "Account: 0x067679ed..., Token: 0xYourBoun..., RPC: https://optimism-sepolia-rpc.publicnode.com",
+    "category": "status",
+    "icon": "\ud83d\udcbe",
+    "type": "info",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T05:48:07.438786",
+    "agent": "Unibase",
+    "message": "Configuration validated successfully",
+    "category": "status",
+    "icon": "\u2705",
+    "type": "info",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T05:48:07.439329",
+    "agent": "Unibase",
+    "message": "Account: 0x067679ed..., Token: 0xYourBoun..., RPC: https://optimism-sepolia-rpc.publicnode.com",
+    "category": "status",
+    "icon": "\ud83d\udcbe",
+    "type": "info",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T05:48:51.004667",
+    "agent": "AgentRegistryAdapter",
+    "message": "WARNING: web3 not available, on-chain operations will be stubbed",
+    "category": "error",
+    "icon": "\u26a0\ufe0f",
+    "type": "warning",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T05:48:51.005359",
+    "agent": "AgentRegistryAdapter",
+    "message": "Web3 not available, on-chain operations will be stubbed",
+    "category": "error",
+    "icon": "\u26a0\ufe0f",
+    "type": "warning",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T05:48:51.005377",
+    "agent": "AgentRegistryAdapter",
+    "message": "Web3 not available, on-chain operations will be stubbed",
+    "category": "error",
+    "icon": "\u26a0\ufe0f",
+    "type": "warning",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T05:48:51.005395",
+    "agent": "AgentRegistryAdapter",
+    "message": "Web3 not available, on-chain operations will be stubbed",
+    "category": "error",
+    "icon": "\u26a0\ufe0f",
+    "type": "warning",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T05:48:51.005420",
+    "agent": "AgentRegistryAdapter",
+    "message": "Web3 not available, on-chain operations will be stubbed",
+    "category": "error",
+    "icon": "\u26a0\ufe0f",
+    "type": "warning",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T05:48:51.005442",
+    "agent": "AgentRegistryAdapter",
+    "message": "Web3 not available, on-chain operations will be stubbed",
+    "category": "error",
+    "icon": "\u26a0\ufe0f",
+    "type": "warning",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T05:48:51.005462",
+    "agent": "AgentRegistryAdapter",
+    "message": "Web3 not available, on-chain operations will be stubbed",
+    "category": "error",
+    "icon": "\u26a0\ufe0f",
+    "type": "warning",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T05:48:51.005917",
+    "agent": "AgentRegistryAdapter",
+    "message": "[REGISTER] 0x067679eD9C94F087a83c4e61C671Ac70FeEa75FA",
+    "category": "status",
+    "icon": "\ud83d\udcdd",
+    "type": "info",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T05:48:51.006402",
+    "agent": "AgentRegistryAdapter",
+    "message": "[REGISTER] 0x067679eD9C94F087a83c4e61C671Ac70FeEa75FA",
+    "category": "status",
+    "icon": "\ud83d\udcdd",
+    "type": "info",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T05:48:51.006894",
+    "agent": "AgentRegistryAdapter",
+    "message": "[REGISTER] 0x067679eD9C94F087a83c4e61C671Ac70FeEa75FA",
+    "category": "status",
+    "icon": "\ud83d\udcdd",
+    "type": "info",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T05:48:51.007344",
+    "agent": "AgentRegistryAdapter",
+    "message": "[REGISTER] 0x067679eD9C94F087a83c4e61C671Ac70FeEa75FA",
+    "category": "status",
+    "icon": "\ud83d\udcdd",
+    "type": "info",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T05:48:51.007766",
+    "agent": "AgentRegistryAdapter",
+    "message": "[REGISTER] 0x067679eD9C94F087a83c4e61C671Ac70FeEa75FA",
+    "category": "status",
+    "icon": "\ud83d\udcdd",
+    "type": "info",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T05:48:51.008383",
+    "agent": "AgentRegistryAdapter",
+    "message": "[REGISTER] 0x067679eD9C94F087a83c4e61C671Ac70FeEa75FA",
+    "category": "status",
+    "icon": "\ud83d\udcdd",
+    "type": "info",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T05:48:51.164476",
+    "agent": "UnibaseAgentStore",
+    "message": "Retry 1/3 for key agent:identity:067679ed9c94f087a83c4e61c671ac70feea75fa after 1.0s",
+    "category": "error",
+    "icon": "\ud83d\udd04",
+    "type": "warning",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T05:48:51.166276",
+    "agent": "UnibaseAgentStore",
+    "message": "Retry 1/3 for key agent:identity:067679ed9c94f087a83c4e61c671ac70feea75fa after 1.0s",
+    "category": "error",
+    "icon": "\ud83d\udd04",
+    "type": "warning",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T05:48:51.169747",
+    "agent": "UnibaseAgentStore",
+    "message": "Retry 1/3 for key agent:identity:067679ed9c94f087a83c4e61c671ac70feea75fa after 1.0s",
+    "category": "error",
+    "icon": "\ud83d\udd04",
+    "type": "warning",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T05:48:51.170229",
+    "agent": "UnibaseAgentStore",
+    "message": "Retry 1/3 for key agent:identity:067679ed9c94f087a83c4e61c671ac70feea75fa after 1.0s",
+    "category": "error",
+    "icon": "\ud83d\udd04",
+    "type": "warning",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T05:48:51.172838",
+    "agent": "UnibaseAgentStore",
+    "message": "Retry 1/3 for key agent:identity:067679ed9c94f087a83c4e61c671ac70feea75fa after 1.0s",
+    "category": "error",
+    "icon": "\ud83d\udd04",
+    "type": "warning",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T05:48:51.173112",
+    "agent": "UnibaseAgentStore",
+    "message": "Retry 1/3 for key agent:identity:067679ed9c94f087a83c4e61c671ac70feea75fa after 1.0s",
+    "category": "error",
+    "icon": "\ud83d\udd04",
+    "type": "warning",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T05:48:52.259771",
+    "agent": "UnibaseAgentStore",
+    "message": "Retry 2/3 for key agent:identity:067679ed9c94f087a83c4e61c671ac70feea75fa after 2.0s",
+    "category": "error",
+    "icon": "\ud83d\udd04",
+    "type": "warning",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T05:48:52.287166",
+    "agent": "UnibaseAgentStore",
+    "message": "Retry 2/3 for key agent:identity:067679ed9c94f087a83c4e61c671ac70feea75fa after 2.0s",
+    "category": "error",
+    "icon": "\ud83d\udd04",
+    "type": "warning",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T05:48:52.287953",
+    "agent": "UnibaseAgentStore",
+    "message": "Retry 2/3 for key agent:identity:067679ed9c94f087a83c4e61c671ac70feea75fa after 2.0s",
+    "category": "error",
+    "icon": "\ud83d\udd04",
+    "type": "warning",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T05:48:52.290094",
+    "agent": "UnibaseAgentStore",
+    "message": "Retry 2/3 for key agent:identity:067679ed9c94f087a83c4e61c671ac70feea75fa after 2.0s",
+    "category": "error",
+    "icon": "\ud83d\udd04",
+    "type": "warning",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T05:48:52.292823",
+    "agent": "UnibaseAgentStore",
+    "message": "Retry 2/3 for key agent:identity:067679ed9c94f087a83c4e61c671ac70feea75fa after 2.0s",
+    "category": "error",
+    "icon": "\ud83d\udd04",
+    "type": "warning",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T05:48:52.301311",
+    "agent": "UnibaseAgentStore",
+    "message": "Retry 2/3 for key agent:identity:067679ed9c94f087a83c4e61c671ac70feea75fa after 2.0s",
+    "category": "error",
+    "icon": "\ud83d\udd04",
+    "type": "warning",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T05:48:54.386439",
+    "agent": "UnibaseAgentStore",
+    "message": "Retry 3/3 for key agent:identity:067679ed9c94f087a83c4e61c671ac70feea75fa after 4.0s",
+    "category": "error",
+    "icon": "\ud83d\udd04",
+    "type": "warning",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T05:48:54.396541",
+    "agent": "UnibaseAgentStore",
+    "message": "Retry 3/3 for key agent:identity:067679ed9c94f087a83c4e61c671ac70feea75fa after 4.0s",
+    "category": "error",
+    "icon": "\ud83d\udd04",
+    "type": "warning",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T05:48:54.402072",
+    "agent": "UnibaseAgentStore",
+    "message": "Retry 3/3 for key agent:identity:067679ed9c94f087a83c4e61c671ac70feea75fa after 4.0s",
+    "category": "error",
+    "icon": "\ud83d\udd04",
+    "type": "warning",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T05:48:54.419549",
+    "agent": "UnibaseAgentStore",
+    "message": "Retry 3/3 for key agent:identity:067679ed9c94f087a83c4e61c671ac70feea75fa after 4.0s",
+    "category": "error",
+    "icon": "\ud83d\udd04",
+    "type": "warning",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T05:48:54.434676",
+    "agent": "UnibaseAgentStore",
+    "message": "Retry 3/3 for key agent:identity:067679ed9c94f087a83c4e61c671ac70feea75fa after 4.0s",
+    "category": "error",
+    "icon": "\ud83d\udd04",
+    "type": "warning",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T05:48:54.434778",
+    "agent": "UnibaseAgentStore",
+    "message": "Retry 3/3 for key agent:identity:067679ed9c94f087a83c4e61c671ac70feea75fa after 4.0s",
+    "category": "error",
+    "icon": "\ud83d\udd04",
+    "type": "warning",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T05:48:58.518637",
+    "agent": "UnibaseAgentStore",
+    "message": "Failed to store key agent:identity:067679ed9c94f087a83c4e61c671ac70feea75fa after 3 retries: Unibase RPC error: 404 - {\"jsonrpc\":\"2.0\",\"id\":-1,\"error\":{\"code\":-32001,\"message\":\"Resource not found\"}}",
+    "category": "error",
+    "icon": "\u274c",
+    "type": "error",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T05:48:58.518725",
+    "agent": "UnibaseAgentStore",
+    "message": "Failed to store key agent:identity:067679ed9c94f087a83c4e61c671ac70feea75fa after 3 retries: Unibase RPC error: 404 - {\"jsonrpc\":\"2.0\",\"id\":-1,\"error\":{\"code\":-32001,\"message\":\"Resource not found\"}}",
+    "category": "error",
+    "icon": "\u274c",
+    "type": "error",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T05:48:58.520334",
+    "agent": "AgentRegistryAdapter",
+    "message": "Error registering agent: Unibase RPC error: 404 - {\"jsonrpc\":\"2.0\",\"id\":-1,\"error\":{\"code\":-32001,\"message\":\"Resource not found\"}}",
+    "category": "error",
+    "icon": "\u274c",
+    "type": "error",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T05:48:58.522261",
+    "agent": "AgentRegistryAdapter",
+    "message": "Error registering agent: Unibase RPC error: 404 - {\"jsonrpc\":\"2.0\",\"id\":-1,\"error\":{\"code\":-32001,\"message\":\"Resource not found\"}}",
+    "category": "error",
+    "icon": "\u274c",
+    "type": "error",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T05:48:58.537526",
+    "agent": "UnibaseAgentStore",
+    "message": "Failed to store key agent:identity:067679ed9c94f087a83c4e61c671ac70feea75fa after 3 retries: Unibase RPC error: 404 - {\"jsonrpc\":\"2.0\",\"id\":-1,\"error\":{\"code\":-32001,\"message\":\"Resource not found\"}}",
+    "category": "error",
+    "icon": "\u274c",
+    "type": "error",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T05:48:58.538743",
+    "agent": "AgentRegistryAdapter",
+    "message": "Error registering agent: Unibase RPC error: 404 - {\"jsonrpc\":\"2.0\",\"id\":-1,\"error\":{\"code\":-32001,\"message\":\"Resource not found\"}}",
+    "category": "error",
+    "icon": "\u274c",
+    "type": "error",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T05:48:58.545852",
+    "agent": "UnibaseAgentStore",
+    "message": "Failed to store key agent:identity:067679ed9c94f087a83c4e61c671ac70feea75fa after 3 retries: Unibase RPC error: 404 - {\"jsonrpc\":\"2.0\",\"id\":-1,\"error\":{\"code\":-32001,\"message\":\"Resource not found\"}}",
+    "category": "error",
+    "icon": "\u274c",
+    "type": "error",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T05:48:58.547365",
+    "agent": "AgentRegistryAdapter",
+    "message": "Error registering agent: Unibase RPC error: 404 - {\"jsonrpc\":\"2.0\",\"id\":-1,\"error\":{\"code\":-32001,\"message\":\"Resource not found\"}}",
+    "category": "error",
+    "icon": "\u274c",
+    "type": "error",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T05:48:58.557812",
+    "agent": "UnibaseAgentStore",
+    "message": "Failed to store key agent:identity:067679ed9c94f087a83c4e61c671ac70feea75fa after 3 retries: Unibase RPC error: 404 - {\"jsonrpc\":\"2.0\",\"id\":-1,\"error\":{\"code\":-32001,\"message\":\"Resource not found\"}}",
+    "category": "error",
+    "icon": "\u274c",
+    "type": "error",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T05:48:58.557850",
+    "agent": "UnibaseAgentStore",
+    "message": "Failed to store key agent:identity:067679ed9c94f087a83c4e61c671ac70feea75fa after 3 retries: Unibase RPC error: 404 - {\"jsonrpc\":\"2.0\",\"id\":-1,\"error\":{\"code\":-32001,\"message\":\"Resource not found\"}}",
+    "category": "error",
+    "icon": "\u274c",
+    "type": "error",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T05:48:58.558924",
+    "agent": "AgentRegistryAdapter",
+    "message": "Error registering agent: Unibase RPC error: 404 - {\"jsonrpc\":\"2.0\",\"id\":-1,\"error\":{\"code\":-32001,\"message\":\"Resource not found\"}}",
+    "category": "error",
+    "icon": "\u274c",
+    "type": "error",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T05:48:58.560221",
+    "agent": "AgentRegistryAdapter",
+    "message": "Error registering agent: Unibase RPC error: 404 - {\"jsonrpc\":\"2.0\",\"id\":-1,\"error\":{\"code\":-32001,\"message\":\"Resource not found\"}}",
+    "category": "error",
+    "icon": "\u274c",
+    "type": "error",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T05:49:06.544184",
+    "agent": "Unibase",
+    "message": "Configuration validation failed: UNIBASE_ACCOUNT is not set, BOUNTY_TOKEN_ADDRESS is not set",
+    "category": "error",
+    "icon": "\u26a0\ufe0f",
+    "type": "warning",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T05:49:06.545073",
+    "agent": "Unibase",
+    "message": "WARNING: Unibase configuration has errors. Some features may not work correctly.",
+    "category": "error",
+    "icon": "\u26a0\ufe0f",
+    "type": "warning",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T05:50:24.083809",
+    "agent": "Unibase",
+    "message": "Configuration validation failed: UNIBASE_ACCOUNT is not set, BOUNTY_TOKEN_ADDRESS is not set",
+    "category": "error",
+    "icon": "\u26a0\ufe0f",
+    "type": "warning",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T05:50:24.084691",
+    "agent": "Unibase",
+    "message": "WARNING: Unibase configuration has errors. Some features may not work correctly.",
+    "category": "error",
+    "icon": "\u26a0\ufe0f",
+    "type": "warning",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T05:50:24.255293",
+    "agent": "AgentRegistryAdapter",
+    "message": "WARNING: web3 not available, on-chain operations will be stubbed",
+    "category": "error",
+    "icon": "\u26a0\ufe0f",
+    "type": "warning",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T05:50:24.779327",
+    "agent": "AgentVerse",
+    "message": "Failed to register with AgentVerse: \"AgentverseConfig\" object has no field \"jwt\"",
+    "category": "status",
+    "icon": "\u274c",
+    "type": "info",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T05:50:24.780850",
+    "agent": "Judge",
+    "message": "Chat Protocol inclusion failed (optional): RuntimeError: Protocol AgentChatProtocol:0.3.0 failed verification",
+    "category": "status",
+    "icon": "\u2696\ufe0f",
+    "type": "info",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T05:50:24.781584",
+    "agent": "AgentRegistryAdapter",
+    "message": "Web3 not available, on-chain operations will be stubbed",
+    "category": "error",
+    "icon": "\u26a0\ufe0f",
+    "type": "warning",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T05:50:24.782458",
+    "agent": "Judge",
+    "message": "Agent registry adapter initialized",
+    "category": "status",
+    "icon": "\ud83d\udcdd",
+    "type": "info",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T05:52:36.099131",
+    "agent": "Unibase",
+    "message": "Configuration validated successfully",
+    "category": "status",
+    "icon": "\u2705",
+    "type": "info",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T05:52:36.099914",
+    "agent": "Unibase",
+    "message": "Account: 0x067679ed..., Token: 0xYourBoun..., RPC: https://optimism-sepolia-rpc.publicnode.com",
+    "category": "status",
+    "icon": "\ud83d\udcbe",
+    "type": "info",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T05:52:36.270524",
+    "agent": "AgentRegistryAdapter",
+    "message": "WARNING: web3 not available, on-chain operations will be stubbed",
+    "category": "error",
+    "icon": "\u26a0\ufe0f",
+    "type": "warning",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T05:52:36.451496",
+    "agent": "AgentVerse",
+    "message": "Failed to register with AgentVerse: \"AgentverseConfig\" object has no field \"jwt\"",
+    "category": "status",
+    "icon": "\u274c",
+    "type": "info",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T05:52:36.453884",
+    "agent": "Judge",
+    "message": "Chat Protocol inclusion failed (optional): RuntimeError: Protocol AgentChatProtocol:0.3.0 failed verification",
+    "category": "status",
+    "icon": "\u2696\ufe0f",
+    "type": "info",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T05:52:36.454979",
+    "agent": "AgentRegistryAdapter",
+    "message": "Web3 not available, on-chain operations will be stubbed",
+    "category": "error",
+    "icon": "\u26a0\ufe0f",
+    "type": "warning",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T05:52:36.455932",
+    "agent": "Judge",
+    "message": "Agent registry adapter initialized",
+    "category": "status",
+    "icon": "\ud83d\udcdd",
+    "type": "info",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T05:52:37.961620",
+    "agent": "AgentRegistryAdapter",
+    "message": "WARNING: web3 not available, on-chain operations will be stubbed",
+    "category": "error",
+    "icon": "\u26a0\ufe0f",
+    "type": "warning",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T05:52:38.150072",
+    "agent": "AgentVerse",
+    "message": "Failed to register with AgentVerse: \"AgentverseConfig\" object has no field \"jwt\"",
+    "category": "status",
+    "icon": "\u274c",
+    "type": "info",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T05:52:38.152454",
+    "agent": "Target",
+    "message": "Chat Protocol inclusion failed (optional): RuntimeError: Protocol AgentChatProtocol:0.3.0 failed verification",
+    "category": "status",
+    "icon": "\ud83c\udfaf",
+    "type": "info",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T05:52:38.154275",
+    "agent": "AgentRegistryAdapter",
+    "message": "Web3 not available, on-chain operations will be stubbed",
+    "category": "error",
+    "icon": "\u26a0\ufe0f",
+    "type": "warning",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T05:52:38.155016",
+    "agent": "Target",
+    "message": "Agent registry adapter initialized",
+    "category": "status",
+    "icon": "\ud83d\udcdd",
+    "type": "info",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T05:52:38.156307",
+    "agent": "Target",
+    "message": "Target Agent started: agent1qdes2fzqpzk593came2du73tvdesf32967vk6ae43nh7rdmvfdhrztrmlwx",
+    "category": "status",
+    "icon": "\ud83c\udfaf",
+    "type": "info",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T05:52:38.156974",
+    "agent": "Target",
+    "message": "Listening on port 8000",
+    "category": "status",
+    "icon": "\ud83c\udfaf",
+    "type": "info",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T05:52:38.157616",
+    "agent": "Target",
+    "message": "Failed to register agent identity: Invalid agent address",
+    "category": "error",
+    "icon": "\u26a0\ufe0f",
+    "type": "warning",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T05:52:39.868828",
+    "agent": "Unibase",
+    "message": "Configuration validated successfully",
+    "category": "status",
+    "icon": "\u2705",
+    "type": "info",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T05:52:39.869580",
+    "agent": "Unibase",
+    "message": "Account: 0x067679ed..., Token: 0xYourBoun..., RPC: https://optimism-sepolia-rpc.publicnode.com",
+    "category": "status",
+    "icon": "\ud83d\udcbe",
+    "type": "info",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T05:52:39.974908",
+    "agent": "AgentRegistryAdapter",
+    "message": "WARNING: web3 not available, on-chain operations will be stubbed",
+    "category": "error",
+    "icon": "\u26a0\ufe0f",
+    "type": "warning",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T05:53:17.621482",
+    "agent": "Unibase",
+    "message": "Configuration validation failed: UNIBASE_ACCOUNT is not set, BOUNTY_TOKEN_ADDRESS is not set",
+    "category": "error",
+    "icon": "\u26a0\ufe0f",
+    "type": "warning",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T05:53:17.622845",
+    "agent": "Unibase",
+    "message": "WARNING: Unibase configuration has errors. Some features may not work correctly.",
+    "category": "error",
+    "icon": "\u26a0\ufe0f",
+    "type": "warning",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T05:53:17.840759",
+    "agent": "AgentRegistryAdapter",
+    "message": "WARNING: web3 not available, on-chain operations will be stubbed",
+    "category": "error",
+    "icon": "\u26a0\ufe0f",
+    "type": "warning",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T05:53:18.008000",
+    "agent": "AgentVerse",
+    "message": "Failed to register with AgentVerse: \"AgentverseConfig\" object has no field \"jwt\"",
+    "category": "status",
+    "icon": "\u274c",
+    "type": "info",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T05:53:18.009846",
+    "agent": "Judge",
+    "message": "Chat Protocol inclusion failed (optional): RuntimeError: Protocol AgentChatProtocol:0.3.0 failed verification",
+    "category": "status",
+    "icon": "\u2696\ufe0f",
+    "type": "info",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T05:53:18.010699",
+    "agent": "AgentRegistryAdapter",
+    "message": "Web3 not available, on-chain operations will be stubbed",
+    "category": "error",
+    "icon": "\u26a0\ufe0f",
+    "type": "warning",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T05:53:18.011348",
+    "agent": "Judge",
+    "message": "Agent registry adapter initialized",
+    "category": "status",
+    "icon": "\ud83d\udcdd",
+    "type": "info",
+    "is_vulnerability": false
   }
 ]

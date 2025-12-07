@@ -5,11 +5,34 @@ import { Audit } from '@/types';
 // Currently empty - audits will be populated when real audits are created
 const mockAudits: Audit[] = [];
 
+// Helper function to convert backend audit format to frontend Audit format
+function convertBackendAuditToFrontend(backendAudit: any): Audit {
+  return {
+    id: backendAudit.get('audit_id') || backendAudit.get('id') || '',
+    name: backendAudit.get('name'),
+    description: backendAudit.get('description'),
+    targetAddress: backendAudit.get('targetAddress') || backendAudit.get('target') || '',
+    target: backendAudit.get('target'),
+    status: (backendAudit.get('status') || 'pending') as Audit['status'],
+    createdAt: backendAudit.get('created_at') || backendAudit.get('createdAt') || new Date().toISOString(),
+    updatedAt: backendAudit.get('updated_at') || backendAudit.get('updatedAt') || new Date().toISOString(),
+    vulnerabilityCount: backendAudit.get('vulnerabilityCount'),
+    riskScore: backendAudit.get('riskScore'),
+    intensity: backendAudit.get('intensity'),
+    ownerAddress: backendAudit.get('wallet') || backendAudit.get('ownerAddress'),
+    tags: backendAudit.get('tags'),
+    difficulty: backendAudit.get('difficulty'),
+    priority: backendAudit.get('priority'),
+    metadata: backendAudit.get('metadata'),
+  };
+}
+
 /**
  * GET /api/audits
- * Retrieves all audits
+ * Retrieves all audits, optionally filtered by owner wallet address
  * 
  * Query parameters:
+ * - owner: Filter by owner wallet address
  * - status: Filter by status (active|completed|failed)
  * - limit: Maximum number of results (default: 100)
  * - offset: Pagination offset (default: 0)
@@ -21,14 +44,15 @@ export async function GET(request: NextRequest) {
   try {
     // Parse query parameters
     const searchParams = request.nextUrl.searchParams;
+    const ownerFilter = searchParams.get('owner');
     const statusFilter = searchParams.get('status');
     const limitParam = searchParams.get('limit');
     const offsetParam = searchParams.get('offset');
     
-    console.log('[GET /api/audits] Query params:', { statusFilter, limitParam, offsetParam });
+    console.log('[GET /api/audits] Query params:', { ownerFilter, statusFilter, limitParam, offsetParam });
     
     // Input validation
-    const validStatuses = ['active', 'completed', 'failed'];
+    const validStatuses = ['active', 'completed', 'failed', 'pending', 'ready'];
     if (statusFilter && !validStatuses.includes(statusFilter)) {
       console.warn('[GET /api/audits] Invalid status filter:', statusFilter);
       return NextResponse.json(
@@ -69,10 +93,54 @@ export async function GET(request: NextRequest) {
       offset = parsedOffset;
     }
     
+    // Fetch audits from backend
+    let allAudits = [...mockAudits];
+    try {
+      const agentApiUrl = process.env.AGENT_API_URL || 'http://localhost:8003';
+      const params = new URLSearchParams();
+      if (ownerFilter) {
+        params.append('owner', ownerFilter);
+      }
+      if (statusFilter) {
+        params.append('status', statusFilter);
+      }
+      
+      const queryString = params.toString();
+      const backendUrl = `${agentApiUrl}/audits${queryString ? `?${queryString}` : ''}`;
+      
+      const response = await fetch(backendUrl, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        cache: 'no-store',
+      });
+      
+      if (response.ok) {
+        const backendData = await response.json();
+        if (backendData.audits && Array.isArray(backendData.audits)) {
+          // Backend already returns in frontend format
+          allAudits = backendData.audits as Audit[];
+          console.log(`[GET /api/audits] Fetched ${allAudits.length} audits from backend`);
+        }
+      }
+    } catch (error) {
+      console.warn('[GET /api/audits] Could not fetch from backend, using local storage:', error);
+      // Fallback to mockAudits if backend is unavailable
+    }
+    
+    // Filter audits by owner address if provided
+    let filteredAudits = allAudits;
+    if (ownerFilter) {
+      filteredAudits = allAudits.filter(audit => 
+        audit.ownerAddress && audit.ownerAddress.toLowerCase() === ownerFilter.toLowerCase()
+      );
+      console.log(`[GET /api/audits] Filtered by owner "${ownerFilter}": ${filteredAudits.length} audits`);
+    }
+    
     // Filter audits by status if provided
-    let filteredAudits = mockAudits;
     if (statusFilter) {
-      filteredAudits = mockAudits.filter(audit => audit.status === statusFilter);
+      filteredAudits = filteredAudits.filter(audit => audit.status === statusFilter);
       console.log(`[GET /api/audits] Filtered by status "${statusFilter}": ${filteredAudits.length} audits`);
     }
     

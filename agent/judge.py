@@ -91,6 +91,15 @@ Analyze this vulnerability and provide:
 
 Return JSON format: {{"risk_score": number, "severity": "string", "recommendation": "string"}}"""
     
+    # Skip API call if ASI_API_KEY is not configured
+    if not ASI_API_KEY or not ASI_API_KEY.strip():
+        log("ASI.Cloud", "ASI_API_KEY not configured, using default risk assessment", "🧠", "info")
+        return {
+            "risk_score": 75,
+            "severity": "HIGH",
+            "recommendation": "Review vulnerability manually"
+        }
+    
     try:
         log("ASI.Cloud", "Analyzing vulnerability severity...", "🧠", "info")
         

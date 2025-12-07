@@ -72,6 +72,15 @@ Analyze this attack and provide:
 
 Return JSON format: {{"attack_type": "string", "threat_level": "string", "defensive_recommendation": "string"}}"""
     
+    # Skip API call if ASI_API_KEY is not configured
+    if not ASI_API_KEY or not ASI_API_KEY.strip():
+        log("ASI.Cloud", "ASI_API_KEY not configured, using default analysis", "🧠", "info")
+        return {
+            "attack_type": "Unknown",
+            "threat_level": "MEDIUM",
+            "defensive_recommendation": "Review payload manually"
+        }
+    
     try:
         log("ASI.Cloud", "Analyzing attack payload...", "🧠", "info")
         

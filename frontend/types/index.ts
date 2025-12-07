@@ -24,12 +24,21 @@ export interface AgentStatus {
 export interface Audit {
   id: string;
   targetAddress: string;
-  status: 'active' | 'completed' | 'failed';
+  status: 'active' | 'completed' | 'failed' | 'pending' | 'ready';
   createdAt: string;
   updatedAt: string;
   vulnerabilityCount?: number;
   riskScore?: number;
   intensity?: string;
+  ownerAddress?: string; // Wallet address of the user who created the audit
+  // New fields for Create Audit workflow
+  name?: string;
+  description?: string;
+  target?: string; // URL/Repo (alternative to targetAddress)
+  tags?: string[];
+  difficulty?: string;
+  priority?: string;
+  metadata?: Record<string, any>;
 }
 
 export interface ProofDetail {

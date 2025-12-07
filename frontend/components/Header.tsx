@@ -47,12 +47,15 @@ export default function Header() {
             <ConnectWalletMenu />
           ) : (
             <div className="flex items-center gap-2">
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-[#09090b] rounded-lg border border-[#27272a]">
+              <Link
+                href="/profile"
+                className="flex items-center gap-2 px-3 py-1.5 bg-[#09090b] rounded-lg border border-[#27272a] hover:border-gray-700 transition-colors"
+              >
                 <div className="w-2 h-2 bg-green-500 rounded-full pulse-green"></div>
                 <span className="text-sm mono text-gray-300">
                   {address?.slice(0, 6)}...{address?.slice(-4)}
                 </span>
-              </div>
+              </Link>
               <button
                 onClick={() => disconnect()}
                 className="px-3 py-1.5 text-sm text-gray-400 hover:text-white transition-colors"
