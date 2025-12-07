@@ -6,11 +6,11 @@ Provides REST API endpoints for frontend to interact with agents.
 """
 import os
 import sys
-import asyncio
 import subprocess
 import time
+import logging
 from pathlib import Path
-from typing import Optional, Dict, Any, List
+from typing import Dict, Any, Optional
 from datetime import datetime
 from contextlib import asynccontextmanager
 
@@ -19,114 +19,75 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 import uvicorn
 
+# Configure logging first
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout)
+    ]
+)
+logger = logging.getLogger(__name__)
+
 # Add agent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent))
 
-# Global state for agent processes
-class AgentState:
-    """Global state to track running agent processes"""
-    judge_process: Optional[subprocess.Popen] = None
-    target_process: Optional[subprocess.Popen] = None
-    red_team_process: Optional[subprocess.Popen] = None
-    judge_address: Optional[str] = None
-    target_address: Optional[str] = None
-    red_team_address: Optional[str] = None
-    started_at: Optional[datetime] = None
-    target_address_config: Optional[str] = None
-    intensity: Optional[str] = None
+# Load configuration from config.py (which handles .env loading)
+try:
+    from config import get_config
+    config = get_config()
+    logger.info("Configuration loaded from config.py")
+except Exception as e:
+    logger.warning(f"Failed to load config.py: {e}, falling back to environment variables")
+    config = None
 
-
-agent_state = AgentState()
-
-# Simple processes dictionary for simpler endpoint implementation
+# Global dictionary to store agent processes
 processes: Dict[str, subprocess.Popen] = {}
 
 
-# Pydantic models
+# Pydantic models for request/response
 class StartAgentsRequest(BaseModel):
+    """Request model for starting agents"""
     targetAddress: str = Field(..., description="Target contract address to audit")
     intensity: str = Field(default="quick", description="Audit intensity: 'quick' or 'deep'")
 
 
-class AgentStatus(BaseModel):
-    is_running: bool
-    port: Optional[int] = None
-    address: Optional[str] = None
-    last_seen: Optional[str] = None
-    health_status: str = Field(default="down", description="healthy | degraded | down")
-
-
-class AgentsStatusResponse(BaseModel):
-    judge: AgentStatus
-    target: AgentStatus
-    red_team: AgentStatus
-    started_at: Optional[str] = None
-
-
 class StartAgentsResponse(BaseModel):
+    """Response model for starting agents"""
     success: bool
     message: str
-    agents: Optional[Dict[str, Any]] = None
-    error: Optional[str] = None
+    agents: Dict[str, Dict[str, Any]]
 
 
-async def check_process_health(process: Optional[subprocess.Popen]) -> str:
-    """Check if a process is healthy"""
-    if process is None:
-        return "down"
-    
-    poll_result = process.poll()
-    if poll_result is None:
-        return "healthy"
-    else:
-        return "down"
-
-
-def get_agent_address_from_logs(agent_name: str) -> Optional[str]:
-    """Try to extract agent address from logs.json"""
-    try:
-        logs_path = Path(__file__).parent.parent / "logs.json"
-        if not logs_path.exists():
-            return None
-        
-        import json
-        with open(logs_path, 'r') as f:
-            logs = json.load(f)
-        
-        # Search for agent startup log
-        for log_entry in reversed(logs[-100:]):  # Check last 100 entries
-            if isinstance(log_entry, dict):
-                actor = log_entry.get('actor', '')
-                message = log_entry.get('message', '')
-                
-                if agent_name.lower() in actor.lower():
-                    # Try to extract address from message
-                    if 'started' in message.lower() and 'agent' in message.lower():
-                        # Look for address pattern
-                        import re
-                        # Pattern for agent addresses (fetch addresses)
-                        address_pattern = r'fetch1[a-z0-9]{38}'
-                        match = re.search(address_pattern, message)
-                        if match:
-                            return match.group(0)
-        
-        return None
-    except Exception:
-        return None
+class AgentStatusResponse(BaseModel):
+    """Response model for agent status"""
+    target: bool
+    judge: bool
+    red_team: bool
+    ports: Dict[str, int]
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup and shutdown events"""
+    logger.info("Starting Agent API Server...")
     # Startup
     yield
     # Shutdown - cleanup agent processes
-    if agent_state.judge_process:
-        agent_state.judge_process.terminate()
-    if agent_state.target_process:
-        agent_state.target_process.terminate()
-    if agent_state.red_team_process:
-        agent_state.red_team_process.terminate()
+    logger.info("Shutting down Agent API Server, cleaning up agent processes...")
+    for name, proc in list(processes.items()):
+        if proc and proc.poll() is None:
+            logger.info(f"Terminating {name} agent process...")
+            try:
+                proc.terminate()
+                proc.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                logger.warning(f"Force killing {name} agent process...")
+                proc.kill()
+            except Exception as e:
+                logger.error(f"Error terminating {name} agent: {e}")
+    processes.clear()
+    logger.info("Shutdown complete")
 
 
 # Initialize FastAPI app
@@ -157,136 +118,229 @@ async def health_check():
 
 
 @app.post("/api/agents/start", response_model=StartAgentsResponse, tags=["Agents"])
-def start_agents(targetAddress: str, intensity: str = "quick"):
+def start_agents(request: StartAgentsRequest):
     """
-    Start all three agents (Judge, Target, Red Team)
+    Start all three agents (Target, Judge, Red Team)
     
     Args:
-        targetAddress: Target contract address to audit
-        intensity: Audit intensity: 'quick' or 'deep' (default: 'quick')
+        request: StartAgentsRequest with targetAddress and intensity
         
     Returns:
-        StartAgentsResponse with agent addresses and status
-    """
-    try:
-        agent_dir = Path(__file__).parent
-        python_executable = sys.executable
+        StartAgentsResponse with agent ports
         
+    Raises:
+        HTTPException: If any agent fails to start
+    """
+    logger.info(f"Received request to start agents: targetAddress={request.targetAddress}, intensity={request.intensity}")
+    
+    # Check if agents are already running
+    running_agents = [name for name, proc in processes.items() if proc and proc.poll() is None]
+    if running_agents:
+        logger.warning(f"Agents already running: {running_agents}")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Agents already running: {', '.join(running_agents)}. Stop them first."
+        )
+    
+    agent_dir = Path(__file__).parent
+    python_executable = sys.executable
+    
+    # Get port configuration from config.py
+    if config:
+        target_port = str(config.TARGET_PORT)
+        judge_port = str(config.JUDGE_PORT)
+        red_team_port = str(config.RED_TEAM_PORT)
+    else:
+        target_port = os.getenv("TARGET_PORT", "8000")
+        judge_port = os.getenv("JUDGE_PORT", "8002")
+        red_team_port = os.getenv("RED_TEAM_PORT", "8001")
+    
+    logger.info(f"Agent ports - Target: {target_port}, Judge: {judge_port}, Red Team: {red_team_port}")
+    
+    try:
         # Start Target Agent
-        target = subprocess.Popen([python_executable, str(agent_dir / "target.py")], cwd=str(agent_dir))
-        processes['target'] = target
-        agent_state.target_process = target
+        logger.info("Starting Target agent...")
+        try:
+            target_process = subprocess.Popen(
+                [python_executable, "target.py"],
+                cwd=str(agent_dir),
+                env=os.environ.copy(),
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True
+            )
+            processes['target'] = target_process
+            logger.info(f"Target agent started with PID: {target_process.pid}")
+        except Exception as e:
+            logger.error(f"Failed to start Target agent: {e}")
+            raise HTTPException(status_code=500, detail=f"Failed to start Target agent: {str(e)}")
+        
         time.sleep(0.5)
         
         # Start Judge Agent
-        judge = subprocess.Popen([python_executable, str(agent_dir / "judge.py")], cwd=str(agent_dir))
-        processes['judge'] = judge
-        agent_state.judge_process = judge
+        logger.info("Starting Judge agent...")
+        try:
+            judge_process = subprocess.Popen(
+                [python_executable, "judge.py"],
+                cwd=str(agent_dir),
+                env=os.environ.copy(),
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True
+            )
+            processes['judge'] = judge_process
+            logger.info(f"Judge agent started with PID: {judge_process.pid}")
+        except Exception as e:
+            logger.error(f"Failed to start Judge agent: {e}")
+            # Cleanup target agent
+            if 'target' in processes:
+                processes['target'].terminate()
+            raise HTTPException(status_code=500, detail=f"Failed to start Judge agent: {str(e)}")
+        
         time.sleep(0.5)
         
-        # Start Red-Team Agent
-        red = subprocess.Popen([python_executable, str(agent_dir / "red_team.py")], cwd=str(agent_dir))
-        processes['red_team'] = red
-        agent_state.red_team_process = red
+        # Start Red Team Agent
+        logger.info("Starting Red Team agent...")
+        try:
+            red_team_process = subprocess.Popen(
+                [python_executable, "red_team.py"],
+                cwd=str(agent_dir),
+                env=os.environ.copy(),
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True
+            )
+            processes['red_team'] = red_team_process
+            logger.info(f"Red Team agent started with PID: {red_team_process.pid}")
+        except Exception as e:
+            logger.error(f"Failed to start Red Team agent: {e}")
+            # Cleanup previously started agents
+            if 'target' in processes:
+                processes['target'].terminate()
+            if 'judge' in processes:
+                processes['judge'].terminate()
+            raise HTTPException(status_code=500, detail=f"Failed to start Red Team agent: {str(e)}")
+        
         time.sleep(0.5)
         
-        # Store configuration
-        agent_state.target_address_config = targetAddress
-        agent_state.intensity = intensity
-        agent_state.started_at = datetime.now()
+        # Verify all processes are still running
+        failed_agents = []
+        for name, proc in processes.items():
+            if proc.poll() is not None:
+                failed_agents.append(name)
+                logger.error(f"{name} agent process exited immediately with code: {proc.returncode}")
+        
+        if failed_agents:
+            # Cleanup all processes
+            for name in list(processes.keys()):
+                if processes[name] and processes[name].poll() is None:
+                    processes[name].terminate()
+            processes.clear()
+            raise HTTPException(
+                status_code=500,
+                detail=f"Agents failed to start: {', '.join(failed_agents)}"
+            )
+        
+        logger.info("All agents started successfully")
         
         return StartAgentsResponse(
             success=True,
             message="Agents started",
             agents={
-                "target": {"port": int(os.getenv("TARGET_PORT", "8000"))},
-                "judge": {"port": int(os.getenv("JUDGE_PORT", "8002"))},
-                "red_team": {"port": int(os.getenv("RED_TEAM_PORT", "8001"))},
+                "target": {"port": target_port},
+                "judge": {"port": judge_port},
+                "red_team": {"port": red_team_port}
             }
         )
         
+    except HTTPException:
+        # Re-raise HTTP exceptions
+        raise
     except Exception as e:
-        # Cleanup on error
-        if 'target' in processes:
-            processes['target'].terminate()
-        if 'judge' in processes:
-            processes['judge'].terminate()
-        if 'red_team' in processes:
-            processes['red_team'].terminate()
-        
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Unexpected error starting agents: {e}", exc_info=True)
+        # Cleanup any started processes
+        for name, proc in list(processes.items()):
+            if proc and proc.poll() is None:
+                try:
+                    proc.terminate()
+                except Exception:
+                    pass
+        processes.clear()
+        raise HTTPException(status_code=500, detail=f"Failed to start agents: {str(e)}")
 
 
-@app.get("/api/agents/status", tags=["Agents"])
-def get_status():
+@app.get("/api/agents/status", response_model=AgentStatusResponse, tags=["Agents"])
+def get_agents_status():
     """
     Get status of all running agents
     
     Returns:
-        Dictionary with status of each agent (True if running, False if not)
+        AgentStatusResponse with boolean status for each agent (True if alive, False if not)
+        and port information
     """
-    status = {}
-    for name, proc in processes.items():
-        status[name] = proc.poll() is None
+    logger.info("Checking agent status...")
     
-    # Also check agent_state processes for backward compatibility
-    if agent_state.target_process and 'target' not in status:
-        status['target'] = agent_state.target_process.poll() is None
-    if agent_state.judge_process and 'judge' not in status:
-        status['judge'] = agent_state.judge_process.poll() is None
-    if agent_state.red_team_process and 'red_team' not in status:
-        status['red_team'] = agent_state.red_team_process.poll() is None
+    # Get port configuration from config.py
+    if config:
+        target_port = config.TARGET_PORT
+        judge_port = config.JUDGE_PORT
+        red_team_port = config.RED_TEAM_PORT
+    else:
+        target_port = int(os.getenv("TARGET_PORT", "8000"))
+        judge_port = int(os.getenv("JUDGE_PORT", "8002"))
+        red_team_port = int(os.getenv("RED_TEAM_PORT", "8001"))
     
-    return status
-
-
-@app.post("/api/agents/stop", tags=["Agents"])
-async def stop_agents():
-    """
-    Stop all running agents
-    
-    Returns:
-        Success message
-    """
-    stopped = []
-    
-    if agent_state.judge_process and agent_state.judge_process.poll() is None:
-        agent_state.judge_process.terminate()
-        agent_state.judge_process.wait(timeout=5)
-        stopped.append("judge")
-    
-    if agent_state.target_process and agent_state.target_process.poll() is None:
-        agent_state.target_process.terminate()
-        agent_state.target_process.wait(timeout=5)
-        stopped.append("target")
-    
-    if agent_state.red_team_process and agent_state.red_team_process.poll() is None:
-        agent_state.red_team_process.terminate()
-        agent_state.red_team_process.wait(timeout=5)
-        stopped.append("red_team")
-    
-    # Reset state
-    agent_state.judge_process = None
-    agent_state.target_process = None
-    agent_state.red_team_process = None
-    agent_state.judge_address = None
-    agent_state.target_address = None
-    agent_state.red_team_address = None
-    agent_state.started_at = None
-    
-    return {
-        "success": True,
-        "message": f"Stopped agents: {', '.join(stopped) if stopped else 'none were running'}",
-        "stopped": stopped
+    status = {
+        "target": False,
+        "judge": False,
+        "red_team": False,
+        "ports": {
+            "target": target_port,
+            "judge": judge_port,
+            "red_team": red_team_port
+        }
     }
+    
+    for name in ["target", "judge", "red_team"]:
+        if name in processes:
+            proc = processes[name]
+            if proc:
+                is_alive = proc.poll() is None
+                status[name] = is_alive
+                if not is_alive:
+                    logger.warning(f"{name} agent is not running (exit code: {proc.returncode})")
+            else:
+                status[name] = False
+        else:
+            status[name] = False
+    
+    logger.info(f"Agent status: {status}")
+    return AgentStatusResponse(**status)
 
 
 def main():
     """Run the API server"""
-    port = int(os.getenv("AGENT_API_PORT", "8003"))
+    # Get port from config.py
+    if config:
+        port = config.AGENT_API_PORT
+        host = "0.0.0.0"
+        logger.info(f"Starting Agent API Server on {host}:{port}")
+        logger.info(f"Configuration loaded - TARGET_PORT: {config.TARGET_PORT}, "
+                    f"JUDGE_PORT: {config.JUDGE_PORT}, "
+                    f"RED_TEAM_PORT: {config.RED_TEAM_PORT}, "
+                    f"AGENT_API_PORT: {config.AGENT_API_PORT}, "
+                    f"MIDNIGHT_API_URL: {config.MIDNIGHT_API_URL}")
+    else:
+        port = int(os.getenv("AGENT_API_PORT", "8003"))
+        host = "0.0.0.0"
+        logger.info(f"Starting Agent API Server on {host}:{port}")
+        logger.info(f"Environment variables loaded - TARGET_PORT: {os.getenv('TARGET_PORT', '8000')}, "
+                    f"JUDGE_PORT: {os.getenv('JUDGE_PORT', '8002')}, "
+                    f"RED_TEAM_PORT: {os.getenv('RED_TEAM_PORT', '8001')}")
+    
     uvicorn.run(
         "api_server:app",
-        host="0.0.0.0",
+        host=host,
         port=port,
         reload=False,  # Disable reload for production
         log_level="info",
@@ -295,4 +349,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

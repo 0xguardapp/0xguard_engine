@@ -19,7 +19,9 @@ export default function HivemindList({ logs }: { logs: LogEntry[] }) {
     let foundNew = false;
 
     logs.forEach((log) => {
-      if (log.type === 'attack' && log.message.includes('Executing vector:')) {
+      // Check for attack category or attack-related messages
+      if ((log.category === 'attack' || log.type === 'attack' || log.is_vulnerability) && 
+          log.message && log.message.includes('Executing vector:')) {
         const match = log.message.match(/'([^']+)'/);
         if (match && match[1] && !knownAttacks.has(match[1])) {
           knownAttacks.add(match[1]);

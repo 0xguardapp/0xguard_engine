@@ -20,13 +20,17 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 from logger import log
 from unibase import get_known_exploits, save_exploit, format_exploit_message
+from config import get_config
 
-# ASI.Cloud API Configuration
-ASI_API_KEY = os.getenv("ASI_API_KEY", "")
+# Load configuration
+config = get_config()
+
+# ASI.Cloud API Configuration (from config)
+ASI_API_KEY = config.ASI_API_KEY
 ASI_API_URL = os.getenv("ASI_API_URL", "https://api.asi.cloud/v1/chat/completions")
 
-# AgentVerse API Configuration
-AGENTVERSE_KEY = os.getenv("AGENTVERSE_KEY", "")
+# AgentVerse API Configuration (from config)
+AGENTVERSE_KEY = config.AGENTVERSE_KEY
 
 
 class AttackMessage(Model):
@@ -107,9 +111,9 @@ def create_red_team_agent(
     port: int = None,
     judge_address: str = None,
 ) -> Agent:
-    # Get configuration from environment variables with sensible defaults
+    # Get configuration from config.py
     agent_ip = os.getenv("RED_TEAM_IP") or os.getenv("AGENT_IP", "localhost")
-    agent_port = port or int(os.getenv("RED_TEAM_PORT") or os.getenv("AGENT_PORT", "8001"))
+    agent_port = port or config.RED_TEAM_PORT
     agent_seed = os.getenv("RED_TEAM_SEED") or os.getenv("AGENT_SEED", "red_team_secret_seed_phrase")
     use_mailbox = os.getenv("USE_MAILBOX", "true").lower() == "true"
     
@@ -160,7 +164,7 @@ def create_red_team_agent(
         
         # Register with Agentverse
         try:
-            agentverse_key = os.environ.get("AGENTVERSE_KEY") or AGENTVERSE_KEY
+            agentverse_key = config.AGENTVERSE_KEY
             agent_seed_phrase = os.environ.get("AGENT_SEED_PHRASE") or agent_seed
             endpoint_url = f"http://{agent_ip}:{agent_port}/submit"
             

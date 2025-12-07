@@ -23,7 +23,14 @@ from datetime import datetime
 sys.path.insert(0, str(Path(__file__).parent))
 from logger import log
 from unibase import save_bounty_token
-from midnight_client import submit_audit_proof, generate_audit_id
+from config import get_config
+from midnight_client import (
+    submit_proof,
+    verify_audit_status,
+    generate_audit_id,
+    check_midnight_health,
+    SubmitProofResult
+)
 from proof_verifier import (
     verify_audit_proof,
     batch_verify,
@@ -31,12 +38,15 @@ from proof_verifier import (
     ProofVerificationResult
 )
 
-# ASI.Cloud API Configuration
-ASI_API_KEY = os.getenv("ASI_API_KEY", "")
+# Load configuration
+config = get_config()
+
+# ASI.Cloud API Configuration (from config)
+ASI_API_KEY = config.ASI_API_KEY
 ASI_API_URL = os.getenv("ASI_API_URL", "https://api.asi.cloud/v1/chat/completions")
 
-# AgentVerse API Configuration
-AGENTVERSE_KEY = os.getenv("AGENTVERSE_KEY", "")
+# AgentVerse API Configuration (from config)
+AGENTVERSE_KEY = config.AGENTVERSE_KEY
 
 # Import message models - define locally to avoid circular imports
 class ResponseMessage(Model):
@@ -48,8 +58,8 @@ class AttackMessage(Model):
     payload: str
 
 
-# SECRET_KEY from target - use environment variable if available
-SECRET_KEY = os.getenv("TARGET_SECRET_KEY", "fetch_ai_2024")
+# SECRET_KEY from target - use configuration
+SECRET_KEY = config.TARGET_SECRET_KEY
 
 
 async def analyze_vulnerability_with_asi(exploit_payload: str, response_message: str) -> dict:
@@ -143,15 +153,15 @@ def create_judge_agent(port: int = None) -> Agent:
     Returns:
         Agent: Configured Judge agent
     """
-    # Get configuration from environment variables with sensible defaults
+    # Get configuration from config.py
     agent_ip = os.getenv("JUDGE_IP") or os.getenv("AGENT_IP", "localhost")
-    agent_port = port or int(os.getenv("JUDGE_PORT") or os.getenv("AGENT_PORT", "8002"))
+    agent_port = port or config.JUDGE_PORT
     agent_seed = os.getenv("JUDGE_SEED") or os.getenv("AGENT_SEED", "judge-agent-hackathon-2025")
     
     # Mailbox configuration: Use mailbox key from Agentverse if provided, otherwise use boolean
     # When you create a "Local Agent" on Agentverse, you'll receive a mailbox key
     # Set MAILBOX_KEY environment variable with your Agentverse mailbox key
-    mailbox_key = os.getenv("MAILBOX_KEY") or os.getenv("JUDGE_MAILBOX_KEY")
+    mailbox_key = config.MAILBOX_KEY or os.getenv("JUDGE_MAILBOX_KEY")
     if mailbox_key:
         mailbox = mailbox_key  # Use mailbox key string for Agentverse
     else:
@@ -196,7 +206,7 @@ def create_judge_agent(port: int = None) -> Agent:
         
         # Register with Agentverse
         try:
-            agentverse_key = os.environ.get("AGENTVERSE_KEY") or AGENTVERSE_KEY
+            agentverse_key = config.AGENTVERSE_KEY
             agent_seed_phrase = os.environ.get("AGENT_SEED_PHRASE") or agent_seed
             endpoint_url = f"http://{agent_ip}:{agent_port}/submit"
             
@@ -283,25 +293,71 @@ def create_judge_agent(port: int = None) -> Agent:
             timestamp = datetime.now().isoformat()
             audit_id = generate_audit_id(exploit_payload, timestamp)
             
-            # Submit ZK proof to Midnight
+            # Submit ZK proof to Midnight (REAL API CALL - NO SIMULATION)
             try:
-                proof_hash = await submit_audit_proof(
+                # Check if Midnight is available
+                health = await check_midnight_health()
+                if not health.get("is_healthy"):
+                    error_msg = f"Midnight API unavailable: {health.get('error', 'Unknown error')}"
+                    ctx.logger.error(error_msg)
+                    log("Judge", error_msg, "⚖️", "error", audit_id=audit_id)
+                    log("Judge", "[zk_failure] Midnight API health check failed", "❌", "error", audit_id=audit_id)
+                    # Continue anyway - submit_proof will handle retries
+                
+                # Prepare auditor ID (pad to 64 chars)
+                auditor_id = judge.address
+                if len(auditor_id) < 64:
+                    auditor_id = auditor_id + "0" * (64 - len(auditor_id))
+                elif len(auditor_id) > 64:
+                    auditor_id = auditor_id[:64]
+                
+                # Submit proof using real Midnight API
+                result: SubmitProofResult = await submit_proof(
                     audit_id=audit_id,
                     exploit_string=exploit_payload,
                     risk_score=risk_score,
-                    auditor_id=judge.address[:64] if len(judge.address) >= 64 else judge.address + "0" * (64 - len(judge.address)),
+                    auditor_id=auditor_id,
                     threshold=threshold
                 )
                 
-                if proof_hash:
-                    state["audit_proofs"][audit_id] = proof_hash
-                    ctx.logger.info(f"Audit proof submitted: {proof_hash}")
+                if result.success and result.proof_hash:
+                    state["audit_proofs"][audit_id] = result.proof_hash
+                    ctx.logger.info(f"Audit proof submitted: {result.proof_hash}")
+                    
+                    # Get transaction ID (contract tx ID)
+                    transaction_id = result.transaction_id or result.proof_hash
+                    proof_status = "submitted"
+                    
+                    # Structured log: proof_submitted with all required fields
+                    log("Judge", f"[proof_submitted] Proof Hash: {result.proof_hash}, Transaction ID: {transaction_id}, Status: {proof_status}, Risk Score: {risk_score}, Audit ID: {audit_id}, Auditor: {auditor_id[:16]}", "🔐", "proof", audit_id=audit_id)
+                    log("Midnight", f"ZK Proof Minted. Hash: {result.proof_hash}, Transaction ID: {transaction_id}, Risk Score: {risk_score}, Audit ID: {audit_id}, Auditor: {auditor_id[:16]}", "🔐", "proof", audit_id=audit_id)
+                    
+                    # Check status using verify_audit_status (REAL API CALL)
+                    status_result = await verify_audit_status(audit_id)
+                    if status_result and status_result.get("is_verified"):
+                        proof_status = "verified"
+                        # Structured log: proof_verified with all required fields
+                        log("Judge", f"[proof_verified] Proof Hash: {result.proof_hash}, Transaction ID: {transaction_id}, Status: {proof_status}, Audit ID: {audit_id}, Verified: true", "✅", "proof", audit_id=audit_id)
+                        log("Judge", f"Proof verified on Midnight: {result.proof_hash}", "⚖️", "info", audit_id=audit_id)
+                        # Structured log: zk_success
+                        log("Judge", f"[zk_success] Proof submitted and verified successfully. Hash: {result.proof_hash}, Transaction ID: {transaction_id}, Status: {proof_status}, Audit ID: {audit_id}", "🎉", "info", audit_id=audit_id)
+                    else:
+                        proof_status = "pending"
+                        # Proof submitted but not yet verified
+                        log("Judge", f"Proof submitted but verification pending: {result.proof_hash}, Transaction ID: {transaction_id}, Status: {proof_status}", "⚖️", "warning", audit_id=audit_id)
                 else:
-                    ctx.logger.warning("Failed to submit audit proof to Midnight")
+                    error_msg = result.error or "Unknown error during proof submission"
+                    ctx.logger.warning(f"Failed to submit audit proof: {error_msg}")
+                    log("Judge", f"Proof submission failed: {error_msg}", "⚖️", "error", audit_id=audit_id)
+                    # Structured log: zk_failure
+                    log("Judge", f"[zk_failure] Proof submission failed. Error: {error_msg}, Audit ID: {audit_id}", "❌", "error", audit_id=audit_id)
                     
             except Exception as e:
-                ctx.logger.error(f"Failed to submit audit proof: {str(e)}")
-                log("Judge", f"Error submitting audit proof: {str(e)}", "⚖️", "info")
+                error_msg = f"Error submitting audit proof: {str(e)}"
+                ctx.logger.error(error_msg)
+                log("Judge", error_msg, "⚖️", "error", audit_id=audit_id)
+                # Structured log: zk_failure
+                log("Judge", f"[zk_failure] Exception during proof submission. Error: {str(e)}, Audit ID: {audit_id}", "❌", "error", audit_id=audit_id)
             
             # Trigger Unibase transaction for bounty token
             try:

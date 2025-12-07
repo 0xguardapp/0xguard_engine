@@ -156,16 +156,25 @@ async def run_ts_contract_operation(
         )
 
     # tsx is in the root workspace node_modules
-    tsx_bin = "/usr/bin/tsx" 
-    process = await asyncio.create_subprocess_exec(
-        str(tsx_bin),
-        str(script_path),
-        operation,
-        json.dumps(data),
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-        cwd=str(app_state.api_root),
-    )
+    tsx_bin = str(app_state.api_root.parent.parent / "node_modules" / ".bin" / "tsx")
+    if not Path(tsx_bin).exists():
+        # Fallback to npx tsx
+        process = await asyncio.create_subprocess_exec(
+            "npx", "tsx", str(script_path), operation, json.dumps(data),
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+            cwd=str(app_state.api_root),
+        )
+    else:
+        process = await asyncio.create_subprocess_exec(
+            str(tsx_bin),
+            str(script_path),
+            operation,
+            json.dumps(data),
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+            cwd=str(app_state.api_root),
+        )
 
     stdout, stderr = await process.communicate()
 

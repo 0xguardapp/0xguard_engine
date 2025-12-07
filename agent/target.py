@@ -19,13 +19,17 @@ from pathlib import Path
 # Add agent directory to path for logger import
 sys.path.insert(0, str(Path(__file__).parent))
 from logger import log
+from config import get_config
 
-# ASI.Cloud API Configuration
-ASI_API_KEY = os.getenv("ASI_API_KEY", "")
+# Load configuration
+config = get_config()
+
+# ASI.Cloud API Configuration (from config)
+ASI_API_KEY = config.ASI_API_KEY
 ASI_API_URL = os.getenv("ASI_API_URL", "https://api.asi.cloud/v1/chat/completions")
 
-# AgentVerse API Configuration
-AGENTVERSE_KEY = os.getenv("AGENTVERSE_KEY", "")
+# AgentVerse API Configuration (from config)
+AGENTVERSE_KEY = config.AGENTVERSE_KEY
 
 
 class AttackMessage(Model):
@@ -37,7 +41,8 @@ class ResponseMessage(Model):
     message: str
 
 
-SECRET_KEY = "fetch_ai_2024"
+# SECRET_KEY from config
+SECRET_KEY = config.TARGET_SECRET_KEY
 
 
 async def analyze_attack_with_asi(payload: str) -> dict:
@@ -120,9 +125,9 @@ Return JSON format: {{"attack_type": "string", "threat_level": "string", "defens
 
 
 def create_target_agent(port: int = None, judge_address: str = None) -> Agent:
-    # Get configuration from environment variables with sensible defaults
+    # Get configuration from config.py
     agent_ip = os.getenv("TARGET_IP") or os.getenv("AGENT_IP", "localhost")
-    agent_port = port or int(os.getenv("TARGET_PORT") or os.getenv("AGENT_PORT", "8000"))
+    agent_port = port or config.TARGET_PORT
     agent_seed = os.getenv("TARGET_SEED") or os.getenv("AGENT_SEED", "target_secret_seed_phrase")
     use_mailbox = os.getenv("USE_MAILBOX", "true").lower() == "true"
     
@@ -156,7 +161,7 @@ def create_target_agent(port: int = None, judge_address: str = None) -> Agent:
         
         # Register with Agentverse
         try:
-            agentverse_key = os.environ.get("AGENTVERSE_KEY") or AGENTVERSE_KEY
+            agentverse_key = config.AGENTVERSE_KEY
             agent_seed_phrase = os.environ.get("AGENT_SEED_PHRASE") or agent_seed
             endpoint_url = f"http://{agent_ip}:{agent_port}/submit"
             

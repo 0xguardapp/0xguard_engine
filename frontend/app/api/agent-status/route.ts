@@ -133,11 +133,30 @@ export async function GET(request: NextRequest) {
       const responseTime = Date.now() - startTime;
       console.log(`[GET /api/agent-status] Success (${responseTime}ms)`);
 
-      return NextResponse.json(
-        {
-          ...defaultAgentStatus,
-          ...data, // Override with actual data
+      // Transform backend response to frontend format
+      // Backend returns: { target: bool, judge: bool, red_team: bool, ports: { target: int, judge: int, red_team: int } }
+      // Frontend expects: { judge: { is_running: bool, port: int, ... }, ... }
+      const transformedData = {
+        judge: {
+          is_running: data.judge ?? false,
+          health_status: data.judge ? 'healthy' : 'down',
+          port: data.ports?.judge ?? 8002,
         },
+        target: {
+          is_running: data.target ?? false,
+          health_status: data.target ? 'healthy' : 'down',
+          port: data.ports?.target ?? 8000,
+        },
+        red_team: {
+          is_running: data.red_team ?? false,
+          health_status: data.red_team ? 'healthy' : 'down',
+          port: data.ports?.red_team ?? 8001,
+        },
+        started_at: data.started_at,
+      };
+
+      return NextResponse.json(
+        transformedData,
         {
           status: 200,
           headers: {

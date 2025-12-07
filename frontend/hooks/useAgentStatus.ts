@@ -17,24 +17,47 @@ interface AgentsStatus {
   started_at?: string;
 }
 
-export function useAgentStatus(pollInterval: number = 2000) {
+export function useAgentStatus(pollInterval: number = 5000) {
   const [status, setStatus] = useState<AgentsStatus | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isBackendOffline, setIsBackendOffline] = useState(false);
 
   const fetchStatus = useCallback(async () => {
     try {
-      const response = await fetch('/api/agent-status');
+      const response = await fetch('/api/agent-status', {
+        cache: 'no-store',
+      });
+      
       if (!response.ok) {
-        throw new Error('Failed to fetch agent status');
+        // Check if it's a connection error (503, 504, etc.)
+        if (response.status === 503 || response.status === 504) {
+          setIsBackendOffline(true);
+          setError('Backend offline');
+        } else {
+          throw new Error(`Failed to fetch agent status: ${response.status}`);
+        }
+        setIsLoading(false);
+        return;
       }
+      
       const data: AgentsStatus = await response.json();
+      
+      // Check if response has error field indicating backend issue
+      if (data.error) {
+        setIsBackendOffline(true);
+        setError('Backend offline');
+      } else {
+        setIsBackendOffline(false);
+        setError(null);
+      }
+      
       setStatus(data);
-      setError(null);
       setIsLoading(false);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       setError(errorMessage);
+      setIsBackendOffline(true);
       setIsLoading(false);
       // Set default status on error
       setStatus({
@@ -49,7 +72,7 @@ export function useAgentStatus(pollInterval: number = 2000) {
     // Initial fetch
     fetchStatus();
 
-    // Set up polling interval
+    // Set up polling interval (5 seconds)
     const interval = setInterval(fetchStatus, pollInterval);
 
     return () => {
@@ -61,6 +84,7 @@ export function useAgentStatus(pollInterval: number = 2000) {
     status,
     isLoading,
     error,
+    isBackendOffline,
     refetch: fetchStatus,
   };
 }

@@ -1,0 +1,227 @@
+version: '3.8'
+
+services:
+  # Agent API Server - FastAPI server managing agent lifecycle
+  agent-api:
+    build:
+      context: ./agent
+      dockerfile: Dockerfile
+    container_name: 0xguard-agent-api
+    ports:
+      - "8003:8003"
+    environment:
+      - AGENT_API_PORT=8003
+      - AGENT_API_URL=http://agent-api:8003
+      - PYTHONUNBUFFERED=1
+    env_file:
+      - ./agent/.env
+    volumes:
+      - ./logs:/app/logs
+      - ./logs.json:/app/logs.json:rw
+      - ./agent:/app
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8003/health\")' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped
+    networks:
+      - 0xguard-network
+
+  # Judge Agent
+  judge-agent:
+    build:
+      context: ./agent
+      dockerfile: Dockerfile.agent
+    container_name: 0xguard-judge
+    command: python run_judge.py
+    ports:
+      - "8002:8002"
+    environment:
+      - JUDGE_PORT=8002
+      - JUDGE_IP=0.0.0.0
+      - AGENT_API_URL=http://agent-api:8003
+      - PYTHONUNBUFFERED=1
+    env_file:
+      - ./agent/.env
+    volumes:
+      - ./logs:/app/logs
+      - ./logs.json:/app/logs.json:rw
+      - ./agent:/app
+    healthcheck:
+      test: ["CMD-SHELL", "ps aux | grep '[p]ython.*judge.py' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    restart: unless-stopped
+    depends_on:
+      agent-api:
+        condition: service_healthy
+    networks:
+      - 0xguard-network
+
+  # Target Agent
+  target-agent:
+    build:
+      context: ./agent
+      dockerfile: Dockerfile.agent
+    container_name: 0xguard-target
+    command: python run_target.py
+    ports:
+      - "8000:8000"
+    environment:
+      - TARGET_PORT=8000
+      - TARGET_IP=0.0.0.0
+      - AGENT_API_URL=http://agent-api:8003
+      - PYTHONUNBUFFERED=1
+    env_file:
+      - ./agent/.env
+    volumes:
+      - ./logs:/app/logs
+      - ./logs.json:/app/logs.json:rw
+      - ./agent:/app
+    healthcheck:
+      test: ["CMD-SHELL", "ps aux | grep '[p]ython.*target.py' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    restart: unless-stopped
+    depends_on:
+      agent-api:
+        condition: service_healthy
+      judge-agent:
+        condition: service_started
+    networks:
+      - 0xguard-network
+
+  # Red Team Agent
+  red-team-agent:
+    build:
+      context: ./agent
+      dockerfile: Dockerfile.agent
+    container_name: 0xguard-red-team
+    command: python run_red_team.py
+    ports:
+      - "8001:8001"
+    environment:
+      - RED_TEAM_PORT=8001
+      - RED_TEAM_IP=0.0.0.0
+      - AGENT_API_URL=http://agent-api:8003
+      - PYTHONUNBUFFERED=1
+    env_file:
+      - ./agent/.env
+    volumes:
+      - ./logs:/app/logs
+      - ./logs.json:/app/logs.json:rw
+      - ./agent:/app
+    healthcheck:
+      test: ["CMD-SHELL", "ps aux | grep '[p]ython.*red_team.py' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    restart: unless-stopped
+    depends_on:
+      agent-api:
+        condition: service_healthy
+      judge-agent:
+        condition: service_started
+      target-agent:
+        condition: service_started
+    networks:
+      - 0xguard-network
+
+  # Midnight Devnet (Optional - use --profile midnight to enable)
+  midnight-devnet:
+    image: midnightnetwork/devnet:latest
+    container_name: 0xguard-midnight-devnet
+    ports:
+      - "6300:6300"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:6300/health || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 60s  # Devnet takes time to start
+    restart: unless-stopped
+    profiles:
+      - midnight  # Only start with --profile midnight
+    networks:
+      - 0xguard-network
+
+  # Midnight FastAPI (Optional - use --profile midnight to enable)
+  midnight-api:
+    build:
+      context: ./contracts/midnight/api
+      dockerfile: Dockerfile
+    container_name: 0xguard-midnight-api
+    ports:
+      - "8100:8100"  # Map to 8100 to avoid conflicts
+    environment:
+      - PORT=8100
+      - MIDNIGHT_MNEMONIC=${MIDNIGHT_MNEMONIC:-}
+      - MIDNIGHT_ENVIRONMENT=${MIDNIGHT_ENVIRONMENT:-testnet}
+      - MIDNIGHT_PROOF_SERVER=${MIDNIGHT_PROOF_SERVER:-http://midnight-devnet:6300}
+      - MIDNIGHT_INDEXER=${MIDNIGHT_INDEXER:-http://midnight-devnet:6300/graphql}
+      - MIDNIGHT_INDEXER_WS=${MIDNIGHT_INDEXER_WS:-ws://midnight-devnet:6300/graphql/ws}
+      - MIDNIGHT_NODE=${MIDNIGHT_NODE:-http://midnight-devnet:6300}
+      - MIDNIGHT_API_URL=http://midnight-api:8100
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./logs:/app/logs
+      - ./logs.json:/app/logs.json:rw
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8100/health\")' || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+    depends_on:
+      midnight-devnet:
+        condition: service_healthy
+        required: false  # Make devnet optional
+    profiles:
+      - midnight  # Only start with --profile midnight or docker compose --profile midnight up
+    networks:
+      - 0xguard-network
+
+  # Frontend Next.js
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: 0xguard-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - AGENT_API_URL=http://agent-api:8003
+      - NEXT_PUBLIC_AGENT_API_URL=http://localhost:8003
+    volumes:
+      - ./logs:/app/logs
+      - ./logs.json:/app/logs.json:ro  # Read-only for frontend
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/api/audits || wget --no-verbose --tries=1 --spider http://localhost:3000/api/audits || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    depends_on:
+      agent-api:
+        condition: service_healthy
+    networks:
+      - 0xguard-network
+
+networks:
+  0xguard-network:
+    driver: bridge
+    name: 0xguard-network
+
+volumes:
+  logs:
+    driver: local
