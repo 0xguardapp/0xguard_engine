@@ -5,7 +5,7 @@ import Header from '@/components/Header';
 import { AuthGuard } from '@/components/AuthGuard';
 import DashboardLayout from '@/components/DashboardLayout';
 import Image from 'next/image';
-import { useWallet } from '@/hooks/useWallet';
+import { useAccount } from 'wagmi';
 import { useToast } from '@/hooks/useToast';
 import { Audit } from '@/types';
 import Link from 'next/link';
@@ -16,7 +16,7 @@ interface UserSettings {
 }
 
 export default function ProfilePage() {
-  const { isConnected, address, getTruncatedAddress } = useWallet();
+  const { address, isConnected } = useAccount();
   const toast = useToast();
   const [audits, setAudits] = useState<Audit[]>([]);
   const [loading, setLoading] = useState(true);
@@ -30,11 +30,17 @@ export default function ProfilePage() {
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [settingsError, setSettingsError] = useState<string | null>(null);
 
-  // Fetch audits
+  // Fetch audits filtered by user's wallet address
   useEffect(() => {
     const fetchAudits = async () => {
+      if (!address) {
+        setAudits([]);
+        setLoading(false);
+        return;
+      }
+
       try {
-        const response = await fetch('/api/audits');
+        const response = await fetch(`/api/audits?owner=${encodeURIComponent(address)}`);
         const data = await response.json();
         setAudits(data.audits || []);
       } catch (error) {
@@ -45,7 +51,7 @@ export default function ProfilePage() {
     };
 
     fetchAudits();
-  }, []);
+  }, [address]);
 
   // Fetch settings
   useEffect(() => {
@@ -187,13 +193,21 @@ export default function ProfilePage() {
               <div className="flex-1">
                 <h1 className="text-2xl font-semibold tracking-tight mb-2">User Profile</h1>
                 {isConnected && address ? (
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     <div className="flex items-center gap-2">
                       <div className="w-2 h-2 bg-green-500 rounded-full pulse-green"></div>
                       <span className="text-sm text-gray-400">Connected</span>
                     </div>
-                    <p className="text-sm mono text-gray-300">{address}</p>
-                    <p className="text-xs text-gray-500">{getTruncatedAddress()}</p>
+                    <div className="space-y-1">
+                      <div>
+                        <p className="text-xs text-gray-500 mb-1">Wallet Address</p>
+                        <p className="text-sm mono text-gray-300 font-mono">{address}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500 mb-1">User ID</p>
+                        <p className="text-sm mono text-gray-300 font-mono">{address.slice(2, 10).toUpperCase()}-{address.slice(-8).toUpperCase()}</p>
+                      </div>
+                    </div>
                   </div>
                 ) : (
                   <p className="text-sm text-gray-400">Not connected. Connect your wallet to get started.</p>

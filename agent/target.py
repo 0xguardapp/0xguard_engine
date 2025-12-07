@@ -1,4 +1,5 @@
 from uagents import Agent, Context, Model, Protocol
+import agentverse_patch  # ⚡ Adds enable_agentverse() + use_mailbox()
 from uagents_core.contrib.protocols.chat import (
     AgentContent,
     ChatAcknowledgement,
@@ -6,10 +7,6 @@ from uagents_core.contrib.protocols.chat import (
     EndSessionContent,
     TextContent,
     chat_protocol_spec
-)
-from uagents_core.utils.registration import (  # pyright: ignore[reportMissingImports]
-    register_chat_agent,
-    RegistrationRequestCredentials,
 )
 import sys
 import os
@@ -19,13 +16,30 @@ from pathlib import Path
 # Add agent directory to path for logger import
 sys.path.insert(0, str(Path(__file__).parent))
 from logger import log
+from config import get_config
 
-# ASI.Cloud API Configuration
-ASI_API_KEY = os.getenv("ASI_API_KEY", "")
-ASI_API_URL = os.getenv("ASI_API_URL", "https://api.asi.cloud/v1/chat/completions")
+# Agent Registry Integration
+try:
+    from agent_registry_adapter import AgentRegistryAdapter
+    from unibase_agent_store import UnibaseAgentStore
+    REGISTRY_AVAILABLE = True
+except ImportError:
+    REGISTRY_AVAILABLE = False
+    log("Target", "WARNING: Agent registry modules not available", "⚠️", "warning")
 
-# AgentVerse API Configuration
-AGENTVERSE_KEY = os.getenv("AGENTVERSE_KEY", "")
+# Load configuration
+config = get_config()
+
+# ASI.Cloud API Configuration (from config)
+ASI_API_KEY = config.ASI_API_KEY
+ASI_API_URL = os.getenv("ASI_API_URL", "https://api.asi1.ai/v1/chat/completions")
+
+# Gemini API Configuration (fallback LLM)
+GEMINI_API_KEY = config.GEMINI_API_KEY
+GEMINI_API_URL = os.getenv("GEMINI_API_URL", "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent")
+
+# AgentVerse API Configuration (from config)
+AGENTVERSE_KEY = config.AGENTVERSE_KEY
 
 
 class AttackMessage(Model):
@@ -37,7 +51,67 @@ class ResponseMessage(Model):
     message: str
 
 
-SECRET_KEY = "fetch_ai_2024"
+# SECRET_KEY from config
+SECRET_KEY = config.TARGET_SECRET_KEY
+
+
+async def call_gemini_api(prompt: str) -> str:
+    """
+    Call Google Gemini API as a fallback LLM.
+    
+    Args:
+        prompt: The prompt to send to Gemini
+        
+    Returns:
+        str: Response text from Gemini, or empty string if failed
+    """
+    if not GEMINI_API_KEY or not GEMINI_API_KEY.strip():
+        return ""
+    
+    try:
+        log("Gemini", "Calling Gemini API...", "🤖", "info")
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.post(
+                f"{GEMINI_API_URL}?key={GEMINI_API_KEY}",
+                headers={
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "contents": [{
+                        "parts": [{
+                            "text": prompt
+                        }]
+                    }],
+                    "generationConfig": {
+                        "temperature": 0.3,
+                        "maxOutputTokens": 200,
+                    }
+                },
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                # Extract text from Gemini response
+                candidates = data.get("candidates", [])
+                if candidates and len(candidates) > 0:
+                    content = candidates[0].get("content", {})
+                    parts = content.get("parts", [])
+                    if parts and len(parts) > 0:
+                        text = parts[0].get("text", "").strip()
+                        if text:
+                            log("Gemini", "Response received from Gemini", "🤖", "info")
+                            return text
+            else:
+                log("Gemini", f"API error: {response.status_code} - {response.text}", "🤖", "warning")
+                
+    except httpx.TimeoutException:
+        log("Gemini", "API request timeout", "🤖", "warning")
+    except httpx.RequestError as e:
+        log("Gemini", f"API request failed: {str(e)}", "🤖", "warning")
+    except Exception as e:
+        log("Gemini", f"Unexpected error: {str(e)}", "🤖", "warning")
+    
+    return ""
 
 
 async def analyze_attack_with_asi(payload: str) -> dict:
@@ -61,6 +135,35 @@ Analyze this attack and provide:
 
 Return JSON format: {{"attack_type": "string", "threat_level": "string", "defensive_recommendation": "string"}}"""
     
+    # Try ASI.Cloud first, then Gemini, then fallback
+    if not ASI_API_KEY or not ASI_API_KEY.strip():
+        # Try Gemini as fallback
+        if GEMINI_API_KEY and GEMINI_API_KEY.strip():
+            log("ASI.Cloud", "ASI_API_KEY not configured, trying Gemini fallback", "🧠", "info")
+            gemini_response = await call_gemini_api(prompt)
+            if gemini_response:
+                import json
+                try:
+                    # Extract JSON from markdown code blocks if present
+                    analysis_text = gemini_response
+                    if "```json" in analysis_text:
+                        analysis_text = analysis_text.split("```json")[1].split("```")[0].strip()
+                    elif "```" in analysis_text:
+                        analysis_text = analysis_text.split("```")[1].split("```")[0].strip()
+                    analysis = json.loads(analysis_text)
+                    log("Gemini", "Successfully analyzed attack using Gemini", "🤖", "info")
+                    return analysis
+                except json.JSONDecodeError:
+                    log("Gemini", "Failed to parse JSON from Gemini response, using default", "🤖", "warning")
+        
+        # Final fallback to hardcoded values
+        log("ASI.Cloud", "No LLM available, using default analysis", "🧠", "info")
+        return {
+            "attack_type": "Unknown",
+            "threat_level": "MEDIUM",
+            "defensive_recommendation": "Review payload manually"
+        }
+    
     try:
         log("ASI.Cloud", "Analyzing attack payload...", "🧠", "info")
         
@@ -72,7 +175,7 @@ Return JSON format: {{"attack_type": "string", "threat_level": "string", "defens
                     "Content-Type": "application/json",
                 },
                 json={
-                    "model": "gpt-4",
+                    "model": "asi1-mini",
                     "messages": [
                         {
                             "role": "user",
@@ -120,19 +223,36 @@ Return JSON format: {{"attack_type": "string", "threat_level": "string", "defens
 
 
 def create_target_agent(port: int = None, judge_address: str = None) -> Agent:
-    # Get configuration from environment variables with sensible defaults
+    # Get configuration from config.py
     agent_ip = os.getenv("TARGET_IP") or os.getenv("AGENT_IP", "localhost")
-    agent_port = port or int(os.getenv("TARGET_PORT") or os.getenv("AGENT_PORT", "8000"))
-    agent_seed = os.getenv("TARGET_SEED") or os.getenv("AGENT_SEED", "target_secret_seed_phrase")
-    use_mailbox = os.getenv("USE_MAILBOX", "true").lower() == "true"
+    agent_port = port or int(os.getenv("AGENT_PORT_TARGET") or config.TARGET_PORT)
+    # All agents use TARGET_SECRET_KEY as seed for consistency (can be overridden via TARGET_SEED or AGENT_SEED)
+    agent_seed = os.getenv("TARGET_SEED") or os.getenv("AGENT_SEED") or config.TARGET_SECRET_KEY
     
+    # PHASE 3: Instantiate agent with name, seed, and port only
     target = Agent(
-        name="target_agent",
+        name="target-agent",
+        seed=agent_seed,
         port=agent_port,
-        seed=agent_seed,  # CRITICAL: Don't hardcode seeds in production!
-        endpoint=[f"http://{agent_ip}:{agent_port}/submit"],
-        mailbox=use_mailbox,  # Recommended for Agentverse
     )
+    
+    # After agent = Agent(...)
+    AGENTVERSE_KEY = config.AGENTVERSE_KEY
+    MAILBOX_KEY = config.MAILBOX_KEY or os.getenv("TARGET_MAILBOX_KEY")
+    
+    if AGENTVERSE_KEY:
+        try:
+            target.enable_agentverse(AGENTVERSE_KEY)
+            log("AgentVerse", "Agent successfully registered with AgentVerse", "🌐")
+        except Exception as e:
+            log("AgentVerse", f"Failed to register with AgentVerse: {e}", "❌")
+    
+    if MAILBOX_KEY:
+        try:
+            target.use_mailbox(MAILBOX_KEY)
+            log("Mailbox", "Mailbox enabled", "📫")
+        except Exception as e:
+            log("Mailbox", f"Failed to initialize mailbox: {e}", "❌")
     
     # Include the Chat Protocol (optional - only for Agentverse registration)
     # Note: This may fail verification in some uagents versions, but core functionality works without it
@@ -147,6 +267,17 @@ def create_target_agent(port: int = None, judge_address: str = None) -> Agent:
         log("Target", f"Chat Protocol inclusion failed (optional): {type(e).__name__}: {e}", "🎯", "info")
         # Agent will continue to function without chat protocol
 
+    # Initialize agent registry adapter
+    registry_adapter = None
+    unibase_store = None
+    if REGISTRY_AVAILABLE:
+        try:
+            unibase_store = UnibaseAgentStore()
+            registry_adapter = AgentRegistryAdapter(unibase_store=unibase_store)
+            log("Target", "Agent registry adapter initialized", "📝", "info")
+        except Exception as e:
+            log("Target", f"Failed to initialize registry adapter: {str(e)}", "⚠️", "warning")
+    
     @target.on_event("startup")
     async def introduce(ctx: Context):
         ctx.logger.info(f"Target Agent started: {target.address}")
@@ -154,29 +285,32 @@ def create_target_agent(port: int = None, judge_address: str = None) -> Agent:
         log("Target", f"Target Agent started: {target.address}", "🎯", "info")
         log("Target", f"Listening on port {agent_port}", "🎯", "info")
         
-        # Register with Agentverse
-        try:
-            agentverse_key = os.environ.get("AGENTVERSE_KEY") or AGENTVERSE_KEY
-            agent_seed_phrase = os.environ.get("AGENT_SEED_PHRASE") or agent_seed
-            endpoint_url = f"http://{agent_ip}:{agent_port}/submit"
-            
-            if agentverse_key:
-                register_chat_agent(
-                    "target",
-                    endpoint_url,
-                    active=True,
-                    credentials=RegistrationRequestCredentials(
-                        agentverse_api_key=agentverse_key,
-                        agent_seed_phrase=agent_seed_phrase,
-                    ),
-                )
-                ctx.logger.info(f"Target Agent registered with Agentverse at {endpoint_url}")
-                log("Target", f"Registered with Agentverse: {endpoint_url}", "🎯", "info")
-            else:
-                ctx.logger.warning("AGENTVERSE_KEY not set, skipping Agentverse registration")
-        except Exception as e:
-            ctx.logger.error(f"Failed to register with Agentverse: {str(e)}")
-            log("Target", f"Agentverse registration error: {str(e)}", "🎯", "info")
+        # Initialize agent identity in registry
+        if registry_adapter:
+            try:
+                from datetime import datetime
+                identity_data = {
+                    "name": "Target Agent",
+                    "role": "defender",
+                    "capabilities": ["attack_analysis", "defense"],
+                    "version": "1.0.0",
+                    "address": target.address,
+                    "started_at": datetime.now().isoformat()
+                }
+                result = registry_adapter.register_agent(target.address, identity_data)
+                if result.get("success"):
+                    log("Target", f"[agent_identity_registered] Agent: {target.address}, Unibase Key: {result.get('unibase', {}).get('key', 'N/A')}", "📝", "info")
+                    # Update memory with startup info
+                    if unibase_store:
+                        unibase_store.update_agent_memory(target.address, {
+                            "startup_time": datetime.now().isoformat(),
+                            "status": "active"
+                        })
+                        log("Target", f"[agent_memory_updated] Agent: {target.address}", "💾", "info")
+            except Exception as e:
+                log("Target", f"Failed to register agent identity: {str(e)}", "⚠️", "warning")
+        
+        # Agentverse registration is now handled via enable_agentverse() during agent creation
 
     @target.on_message(model=AttackMessage)
     async def handle_attack(ctx: Context, sender: str, msg: AttackMessage):
@@ -206,6 +340,23 @@ def create_target_agent(port: int = None, judge_address: str = None) -> Agent:
             )
             ctx.logger.info("Attack blocked")
             log("Target", f"Attack blocked: '{msg.payload}'", "🎯", "info")
+            
+            # Update reputation after successfully blocking attack (+2 for defense)
+            if registry_adapter:
+                try:
+                    from datetime import datetime
+                    metadata = {
+                        "action": "attack_blocked",
+                        "attack_type": attack_type,
+                        "threat_level": threat_level,
+                        "payload": msg.payload[:100],  # Truncate for storage
+                        "timestamp": datetime.now().isoformat()
+                    }
+                    rep_result = registry_adapter.record_agent_reputation(target.address, delta=2, metadata=metadata)
+                    if rep_result.get("success"):
+                        log("Target", f"[agent_reputation_updated] Agent: {target.address}, Delta: +2 (defense), New Score: {rep_result.get('combined', {}).get('on_chain_score', 'N/A')}", "📊", "info")
+                except Exception as e:
+                    log("Target", f"Failed to update reputation after defense: {str(e)}", "⚠️", "warning")
 
         # Send response to Red Team (original sender)
         await ctx.send(sender, response)
@@ -216,6 +367,20 @@ def create_target_agent(port: int = None, judge_address: str = None) -> Agent:
                 await ctx.send(judge_address, response)
             except Exception as e:
                 ctx.logger.debug(f"Could not send to Judge: {str(e)}")
+        
+        # Update memory with attack handling info
+        if unibase_store:
+            try:
+                from datetime import datetime
+                unibase_store.update_agent_memory(target.address, {
+                    "last_attack_handled": datetime.now().isoformat(),
+                    "last_attack_type": attack_type,
+                    "last_threat_level": threat_level,
+                    "total_attacks_handled": ctx.storage.get("total_attacks_handled", 0) + 1 if hasattr(ctx, 'storage') else 1
+                })
+                log("Target", f"[agent_memory_updated] Agent: {target.address}", "💾", "info")
+            except Exception as e:
+                log("Target", f"Failed to update memory: {str(e)}", "⚠️", "warning")
 
     return target
 

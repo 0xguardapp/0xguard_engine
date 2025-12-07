@@ -3,15 +3,12 @@ Judge Agent - Monitors Red Team and Target communications.
 Triggers Unibase transactions for bounty tokens when vulnerabilities are discovered.
 """
 from uagents import Agent, Context, Model, Protocol  # pyright: ignore[reportMissingImports]
+import agentverse_patch  # ⚡ Adds enable_agentverse() + use_mailbox()
 from uagents_core.contrib.protocols.chat import (  # pyright: ignore[reportMissingImports]
     ChatMessage,
     ChatAcknowledgement,
     TextContent,
     chat_protocol_spec
-)
-from uagents_core.utils.registration import (  # pyright: ignore[reportMissingImports]
-    register_chat_agent,
-    RegistrationRequestCredentials,
 )
 import sys
 import os
@@ -22,8 +19,15 @@ from datetime import datetime
 # Add agent directory to path for logger import
 sys.path.insert(0, str(Path(__file__).parent))
 from logger import log
-from unibase import save_bounty_token
-from midnight_client import submit_audit_proof, generate_audit_id
+from unibase import save_bounty_token, UnibaseClient
+from config import get_config
+from midnight_client import (
+    submit_proof,
+    verify_audit_status,
+    generate_audit_id,
+    check_midnight_health,
+    SubmitProofResult
+)
 from proof_verifier import (
     verify_audit_proof,
     batch_verify,
@@ -31,12 +35,28 @@ from proof_verifier import (
     ProofVerificationResult
 )
 
-# ASI.Cloud API Configuration
-ASI_API_KEY = os.getenv("ASI_API_KEY", "")
-ASI_API_URL = os.getenv("ASI_API_URL", "https://api.asi.cloud/v1/chat/completions")
+# Agent Registry Integration
+try:
+    from agent_registry_adapter import AgentRegistryAdapter
+    from unibase_agent_store import UnibaseAgentStore
+    REGISTRY_AVAILABLE = True
+except ImportError:
+    REGISTRY_AVAILABLE = False
+    log("Judge", "WARNING: Agent registry modules not available", "⚠️", "warning")
 
-# AgentVerse API Configuration
-AGENTVERSE_KEY = os.getenv("AGENTVERSE_KEY", "")
+# Load configuration
+config = get_config()
+
+# ASI.Cloud API Configuration (from config)
+ASI_API_KEY = config.ASI_API_KEY
+ASI_API_URL = os.getenv("ASI_API_URL", "https://api.asi1.ai/v1/chat/completions")
+
+# Gemini API Configuration (fallback LLM)
+GEMINI_API_KEY = config.GEMINI_API_KEY
+GEMINI_API_URL = os.getenv("GEMINI_API_URL", "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent")
+
+# AgentVerse API Configuration (from config)
+AGENTVERSE_KEY = config.AGENTVERSE_KEY
 
 # Import message models - define locally to avoid circular imports
 class ResponseMessage(Model):
@@ -48,8 +68,67 @@ class AttackMessage(Model):
     payload: str
 
 
-# SECRET_KEY from target - use environment variable if available
-SECRET_KEY = os.getenv("TARGET_SECRET_KEY", "fetch_ai_2024")
+# SECRET_KEY from target - use configuration
+SECRET_KEY = config.TARGET_SECRET_KEY
+
+
+async def call_gemini_api(prompt: str) -> str:
+    """
+    Call Google Gemini API as a fallback LLM.
+    
+    Args:
+        prompt: The prompt to send to Gemini
+        
+    Returns:
+        str: Response text from Gemini, or empty string if failed
+    """
+    if not GEMINI_API_KEY or not GEMINI_API_KEY.strip():
+        return ""
+    
+    try:
+        log("Gemini", "Calling Gemini API...", "🤖", "info")
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.post(
+                f"{GEMINI_API_URL}?key={GEMINI_API_KEY}",
+                headers={
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "contents": [{
+                        "parts": [{
+                            "text": prompt
+                        }]
+                    }],
+                    "generationConfig": {
+                        "temperature": 0.3,
+                        "maxOutputTokens": 200,
+                    }
+                },
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                # Extract text from Gemini response
+                candidates = data.get("candidates", [])
+                if candidates and len(candidates) > 0:
+                    content = candidates[0].get("content", {})
+                    parts = content.get("parts", [])
+                    if parts and len(parts) > 0:
+                        text = parts[0].get("text", "").strip()
+                        if text:
+                            log("Gemini", "Response received from Gemini", "🤖", "info")
+                            return text
+            else:
+                log("Gemini", f"API error: {response.status_code} - {response.text}", "🤖", "warning")
+                
+    except httpx.TimeoutException:
+        log("Gemini", "API request timeout", "🤖", "warning")
+    except httpx.RequestError as e:
+        log("Gemini", f"API request failed: {str(e)}", "🤖", "warning")
+    except Exception as e:
+        log("Gemini", f"Unexpected error: {str(e)}", "🤖", "warning")
+    
+    return ""
 
 
 async def analyze_vulnerability_with_asi(exploit_payload: str, response_message: str) -> dict:
@@ -75,6 +154,35 @@ Analyze this vulnerability and provide:
 
 Return JSON format: {{"risk_score": number, "severity": "string", "recommendation": "string"}}"""
     
+    # Try ASI.Cloud first, then Gemini, then fallback
+    if not ASI_API_KEY or not ASI_API_KEY.strip():
+        # Try Gemini as fallback
+        if GEMINI_API_KEY and GEMINI_API_KEY.strip():
+            log("ASI.Cloud", "ASI_API_KEY not configured, trying Gemini fallback", "🧠", "info")
+            gemini_response = await call_gemini_api(prompt)
+            if gemini_response:
+                import json
+                try:
+                    # Extract JSON from markdown code blocks if present
+                    analysis_text = gemini_response
+                    if "```json" in analysis_text:
+                        analysis_text = analysis_text.split("```json")[1].split("```")[0].strip()
+                    elif "```" in analysis_text:
+                        analysis_text = analysis_text.split("```")[1].split("```")[0].strip()
+                    analysis = json.loads(analysis_text)
+                    log("Gemini", "Successfully analyzed vulnerability using Gemini", "🤖", "info")
+                    return analysis
+                except json.JSONDecodeError:
+                    log("Gemini", "Failed to parse JSON from Gemini response, using default", "🤖", "warning")
+        
+        # Final fallback to hardcoded values
+        log("ASI.Cloud", "No LLM available, using default risk assessment", "🧠", "info")
+        return {
+            "risk_score": 75,
+            "severity": "HIGH",
+            "recommendation": "Review vulnerability manually"
+        }
+    
     try:
         log("ASI.Cloud", "Analyzing vulnerability severity...", "🧠", "info")
         
@@ -86,7 +194,7 @@ Return JSON format: {{"risk_score": number, "severity": "string", "recommendatio
                     "Content-Type": "application/json",
                 },
                 json={
-                    "model": "gpt-4",
+                    "model": "asi1-mini",
                     "messages": [
                         {
                             "role": "user",
@@ -143,29 +251,36 @@ def create_judge_agent(port: int = None) -> Agent:
     Returns:
         Agent: Configured Judge agent
     """
-    # Get configuration from environment variables with sensible defaults
+    # Get configuration from config.py
     agent_ip = os.getenv("JUDGE_IP") or os.getenv("AGENT_IP", "localhost")
-    agent_port = port or int(os.getenv("JUDGE_PORT") or os.getenv("AGENT_PORT", "8002"))
-    agent_seed = os.getenv("JUDGE_SEED") or os.getenv("AGENT_SEED", "judge-agent-hackathon-2025")
+    agent_port = port or int(os.getenv("AGENT_PORT_JUDGE") or config.JUDGE_PORT)
+    # All agents use TARGET_SECRET_KEY as seed for consistency (can be overridden via JUDGE_SEED or AGENT_SEED)
+    agent_seed = os.getenv("JUDGE_SEED") or os.getenv("AGENT_SEED") or config.TARGET_SECRET_KEY
     
-    # Mailbox configuration: Use mailbox key from Agentverse if provided, otherwise use boolean
-    # When you create a "Local Agent" on Agentverse, you'll receive a mailbox key
-    # Set MAILBOX_KEY environment variable with your Agentverse mailbox key
-    mailbox_key = os.getenv("MAILBOX_KEY") or os.getenv("JUDGE_MAILBOX_KEY")
-    if mailbox_key:
-        mailbox = mailbox_key  # Use mailbox key string for Agentverse
-    else:
-        # Fallback to boolean if no key provided
-        use_mailbox = os.getenv("USE_MAILBOX", "true").lower() == "true"
-        mailbox = use_mailbox
-    
+    # PHASE 3: Instantiate agent with name, seed, and port only
     judge = Agent(
-        name="judge_agent",
+        name="judge-agent",
+        seed=agent_seed,
         port=agent_port,
-        seed=agent_seed,  # CRITICAL: Don't hardcode seeds in production!
-        endpoint=[f"http://{agent_ip}:{agent_port}/submit"],
-        mailbox=mailbox,  # Mailbox key from Agentverse or boolean
     )
+    
+    # After agent = Agent(...)
+    AGENTVERSE_KEY = config.AGENTVERSE_KEY
+    MAILBOX_KEY = config.MAILBOX_KEY or os.getenv("JUDGE_MAILBOX_KEY")
+    
+    if AGENTVERSE_KEY:
+        try:
+            judge.enable_agentverse(AGENTVERSE_KEY)
+            log("AgentVerse", "Agent successfully registered with AgentVerse", "🌐")
+        except Exception as e:
+            log("AgentVerse", f"Failed to register with AgentVerse: {e}", "❌")
+    
+    if MAILBOX_KEY:
+        try:
+            judge.use_mailbox(MAILBOX_KEY)
+            log("Mailbox", "Mailbox enabled", "📫")
+        except Exception as e:
+            log("Mailbox", f"Failed to initialize mailbox: {e}", "❌")
     
     # Include the Chat Protocol (optional - only for Agentverse registration)
     # Note: This may fail verification in some uagents versions, but core functionality works without it
@@ -187,6 +302,17 @@ def create_judge_agent(port: int = None) -> Agent:
         "audit_proofs": {},  # audit_id -> proof_hash
         "verified_proofs": {},  # proof_id -> ProofVerificationResult
     }
+    
+    # Initialize agent registry adapter
+    registry_adapter = None
+    unibase_store = None
+    if REGISTRY_AVAILABLE:
+        try:
+            unibase_store = UnibaseAgentStore()
+            registry_adapter = AgentRegistryAdapter(unibase_store=unibase_store)
+            log("Judge", "Agent registry adapter initialized", "📝", "info")
+        except Exception as e:
+            log("Judge", f"Failed to initialize registry adapter: {str(e)}", "⚠️", "warning")
 
     @judge.on_event("startup")
     async def introduce(ctx: Context):
@@ -194,29 +320,31 @@ def create_judge_agent(port: int = None) -> Agent:
         log("Judge", f"Judge Agent started: {judge.address}", "⚖️", "info")
         log("Judge", "Monitoring Red Team and Target communications...", "⚖️", "info")
         
-        # Register with Agentverse
-        try:
-            agentverse_key = os.environ.get("AGENTVERSE_KEY") or AGENTVERSE_KEY
-            agent_seed_phrase = os.environ.get("AGENT_SEED_PHRASE") or agent_seed
-            endpoint_url = f"http://{agent_ip}:{agent_port}/submit"
-            
-            if agentverse_key:
-                register_chat_agent(
-                    "judge",
-                    endpoint_url,
-                    active=True,
-                    credentials=RegistrationRequestCredentials(
-                        agentverse_api_key=agentverse_key,
-                        agent_seed_phrase=agent_seed_phrase,
-                    ),
-                )
-                ctx.logger.info(f"Judge Agent registered with Agentverse at {endpoint_url}")
-                log("Judge", f"Registered with Agentverse: {endpoint_url}", "⚖️", "info")
-            else:
-                ctx.logger.warning("AGENTVERSE_KEY not set, skipping Agentverse registration")
-        except Exception as e:
-            ctx.logger.error(f"Failed to register with Agentverse: {str(e)}")
-            log("Judge", f"Agentverse registration error: {str(e)}", "⚖️", "info")
+        # Initialize agent identity in registry
+        if registry_adapter:
+            try:
+                identity_data = {
+                    "name": "Judge Agent",
+                    "role": "monitor",
+                    "capabilities": ["vulnerability_detection", "proof_verification", "bounty_distribution"],
+                    "version": "1.0.0",
+                    "address": judge.address,
+                    "started_at": datetime.now().isoformat()
+                }
+                result = registry_adapter.register_agent(judge.address, identity_data)
+                if result.get("success"):
+                    log("Judge", f"[agent_identity_registered] Agent: {judge.address}, Unibase Key: {result.get('unibase', {}).get('key', 'N/A')}", "📝", "info")
+                    # Update memory with startup info
+                    if unibase_store:
+                        unibase_store.update_agent_memory(judge.address, {
+                            "startup_time": datetime.now().isoformat(),
+                            "status": "active"
+                        })
+                        log("Judge", f"[agent_memory_updated] Agent: {judge.address}", "💾", "info")
+            except Exception as e:
+                log("Judge", f"Failed to register agent identity: {str(e)}", "⚠️", "warning")
+        
+        # Agentverse registration is now handled via enable_agentverse() during agent creation
 
     @judge.on_message(model=AttackMessage)
     async def handle_attack_message(ctx: Context, sender: str, msg: AttackMessage):
@@ -233,6 +361,20 @@ def create_judge_agent(port: int = None) -> Agent:
         # Keep only last 10 attacks to prevent memory growth
         if len(state["attack_flow"]) > 10:
             state["attack_flow"] = state["attack_flow"][-10:]
+        
+        # Update reputation after monitoring action (+1 for active monitoring)
+        if registry_adapter:
+            try:
+                metadata = {
+                    "action": "attack_monitoring",
+                    "sender": sender,
+                    "timestamp": datetime.now().isoformat()
+                }
+                rep_result = registry_adapter.record_agent_reputation(judge.address, delta=1, metadata=metadata)
+                if rep_result.get("success"):
+                    log("Judge", f"[agent_reputation_updated] Agent: {judge.address}, Delta: +1 (monitoring), New Score: {rep_result.get('combined', {}).get('on_chain_score', 'N/A')}", "📊", "info")
+            except Exception as e:
+                log("Judge", f"Failed to update reputation after monitoring: {str(e)}", "⚠️", "warning")
 
     @judge.on_message(model=ResponseMessage)
     async def handle_target_response(ctx: Context, sender: str, msg: ResponseMessage):
@@ -283,25 +425,149 @@ def create_judge_agent(port: int = None) -> Agent:
             timestamp = datetime.now().isoformat()
             audit_id = generate_audit_id(exploit_payload, timestamp)
             
-            # Submit ZK proof to Midnight
+            # Submit ZK proof to Midnight (REAL API CALL - NO SIMULATION)
             try:
-                proof_hash = await submit_audit_proof(
+                # Check if Midnight is available
+                health = await check_midnight_health()
+                if not health.get("is_healthy"):
+                    error_msg = f"Midnight API unavailable: {health.get('error', 'Unknown error')}"
+                    ctx.logger.error(error_msg)
+                    log("Judge", error_msg, "⚖️", "error", audit_id=audit_id)
+                    log("Judge", "[zk_failure] Midnight API health check failed", "❌", "error", audit_id=audit_id)
+                    # Continue anyway - submit_proof will handle retries
+                
+                # Prepare auditor ID (pad to 64 chars)
+                auditor_id = judge.address
+                if len(auditor_id) < 64:
+                    auditor_id = auditor_id + "0" * (64 - len(auditor_id))
+                elif len(auditor_id) > 64:
+                    auditor_id = auditor_id[:64]
+                
+                # Submit proof using real Midnight API
+                result: SubmitProofResult = await submit_proof(
                     audit_id=audit_id,
                     exploit_string=exploit_payload,
                     risk_score=risk_score,
-                    auditor_id=judge.address[:64] if len(judge.address) >= 64 else judge.address + "0" * (64 - len(judge.address)),
+                    auditor_id=auditor_id,
                     threshold=threshold
                 )
                 
-                if proof_hash:
-                    state["audit_proofs"][audit_id] = proof_hash
-                    ctx.logger.info(f"Audit proof submitted: {proof_hash}")
+                if result.success and result.proof_hash:
+                    state["audit_proofs"][audit_id] = result.proof_hash
+                    ctx.logger.info(f"Audit proof submitted: {result.proof_hash}")
+                    
+                    # Get transaction ID (contract tx ID)
+                    transaction_id = result.transaction_id or result.proof_hash
+                    proof_status = "submitted"
+                    
+                    # Structured log: proof_submitted with all required fields
+                    log("Judge", f"[proof_submitted] Proof Hash: {result.proof_hash}, Transaction ID: {transaction_id}, Status: {proof_status}, Risk Score: {risk_score}, Audit ID: {audit_id}, Auditor: {auditor_id[:16]}", "🔐", "proof", audit_id=audit_id)
+                    log("Midnight", f"ZK Proof Minted. Hash: {result.proof_hash}, Transaction ID: {transaction_id}, Risk Score: {risk_score}, Audit ID: {audit_id}, Auditor: {auditor_id[:16]}", "🔐", "proof", audit_id=audit_id)
+                    
+                    # Check status using verify_audit_status (REAL API CALL)
+                    status_result = await verify_audit_status(audit_id)
+                    if status_result and status_result.get("is_verified"):
+                        proof_status = "verified"
+                        # Structured log: proof_verified with all required fields
+                        log("Judge", f"[proof_verified] Proof Hash: {result.proof_hash}, Transaction ID: {transaction_id}, Status: {proof_status}, Audit ID: {audit_id}, Verified: true", "✅", "proof", audit_id=audit_id)
+                        log("Judge", f"Proof verified on Midnight: {result.proof_hash}", "⚖️", "info", audit_id=audit_id)
+                        # Structured log: zk_success
+                        log("Judge", f"[zk_success] Proof submitted and verified successfully. Hash: {result.proof_hash}, Transaction ID: {transaction_id}, Status: {proof_status}, Audit ID: {audit_id}", "🎉", "info", audit_id=audit_id)
+                        
+                        # Update Judge agent reputation after successful proof verification (trusted task)
+                        if registry_adapter:
+                            try:
+                                # Store metadata to Unibase
+                                metadata = {
+                                    "proof_hash": result.proof_hash,
+                                    "transaction_id": transaction_id,
+                                    "audit_id": audit_id,
+                                    "risk_score": risk_score,
+                                    "severity": severity,
+                                    "exploit_payload": exploit_payload[:100],  # Truncate for storage
+                                    "verified_at": datetime.now().isoformat()
+                                }
+                                
+                                # Update reputation (+5 for successful proof verification)
+                                rep_result = registry_adapter.record_agent_reputation(
+                                    judge.address,
+                                    delta=5,
+                                    metadata=metadata
+                                )
+                                if rep_result.get("success"):
+                                    log("Judge", f"[agent_reputation_updated] Agent: {judge.address}, Delta: +5, New Score: {rep_result.get('combined', {}).get('on_chain_score', 'N/A')}", "📊", "info")
+                                
+                                # Validate agent after trusted task (proof verification)
+                                validation_data = {
+                                    "validator": "system",
+                                    "validation_type": "proof_verification",
+                                    "proof_hash": result.proof_hash,
+                                    "audit_id": audit_id,
+                                    "result": "verified",
+                                    "timestamp": datetime.now().isoformat()
+                                }
+                                val_result = registry_adapter.validate_agent(judge.address, validation_data)
+                                if val_result.get("success"):
+                                    log("Judge", f"[agent_validated] Agent: {judge.address}, Type: proof_verification, Proof: {result.proof_hash[:16]}...", "✅", "info")
+                                
+                                # Update memory with proof verification info
+                                if unibase_store:
+                                    unibase_store.update_agent_memory(judge.address, {
+                                        "last_proof_verified": datetime.now().isoformat(),
+                                        "total_proofs_verified": state.get("verified_proofs_count", 0) + 1,
+                                        "last_audit_id": audit_id
+                                    })
+                                    log("Judge", f"[agent_memory_updated] Agent: {judge.address}", "💾", "info")
+                                    state["verified_proofs_count"] = state.get("verified_proofs_count", 0) + 1
+                                    
+                            except Exception as e:
+                                log("Judge", f"Failed to update registry after proof verification: {str(e)}", "⚠️", "warning")
+                        
+                        # Optional ERC-3009 payout after successful proof verification
+                        erc3009_enabled = os.getenv("ERC3009_PAYOUTS_ENABLED", "false").lower() == "true"
+                        if erc3009_enabled and registry_adapter:
+                            try:
+                                # Note: ERC-3009 payouts would require AgentToken contract integration
+                                # This is a placeholder for future implementation
+                                log("Judge", f"[erc3009_payout] Payout enabled but not yet implemented for agent: {judge.address}", "💰", "info")
+                            except Exception as e:
+                                log("Judge", f"ERC-3009 payout error: {str(e)}", "⚠️", "warning")
+                        
+                        # Reward Red Team after proof verification
+                        try:
+                            unibase_client = UnibaseClient()
+                            reward_tx = unibase_client.send_bounty(
+                                recipient=red_team_address,
+                                amount=100  # test amount
+                            )
+                            ctx.logger.info({
+                                "event": "bounty_dispatched",
+                                "recipient": red_team_address,
+                                "amount": 100,
+                                "tx": reward_tx
+                            })
+                        except Exception as e:
+                            ctx.logger.error({
+                                "event": "bounty_failed",
+                                "error": str(e)
+                            })
+                    else:
+                        proof_status = "pending"
+                        # Proof submitted but not yet verified
+                        log("Judge", f"Proof submitted but verification pending: {result.proof_hash}, Transaction ID: {transaction_id}, Status: {proof_status}", "⚖️", "warning", audit_id=audit_id)
                 else:
-                    ctx.logger.warning("Failed to submit audit proof to Midnight")
+                    error_msg = result.error or "Unknown error during proof submission"
+                    ctx.logger.warning(f"Failed to submit audit proof: {error_msg}")
+                    log("Judge", f"Proof submission failed: {error_msg}", "⚖️", "error", audit_id=audit_id)
+                    # Structured log: zk_failure
+                    log("Judge", f"[zk_failure] Proof submission failed. Error: {error_msg}, Audit ID: {audit_id}", "❌", "error", audit_id=audit_id)
                     
             except Exception as e:
-                ctx.logger.error(f"Failed to submit audit proof: {str(e)}")
-                log("Judge", f"Error submitting audit proof: {str(e)}", "⚖️", "info")
+                error_msg = f"Error submitting audit proof: {str(e)}"
+                ctx.logger.error(error_msg)
+                log("Judge", error_msg, "⚖️", "error", audit_id=audit_id)
+                # Structured log: zk_failure
+                log("Judge", f"[zk_failure] Exception during proof submission. Error: {str(e)}, Audit ID: {audit_id}", "❌", "error", audit_id=audit_id)
             
             # Trigger Unibase transaction for bounty token
             try:
@@ -327,18 +593,24 @@ def create_judge_agent(port: int = None) -> Agent:
     # Proof Verification Methods
     # ============================================================================
     
-    @judge.on_query()
-    async def verify_audit_proof_handler(ctx: Context, query: dict):
+    # Define a simple query model for on_query
+    class QueryRequest(Model):
+        method: str = ""
+        proof_id: str = ""
+        auditor_id: str = ""
+    
+    @judge.on_query(model=QueryRequest)
+    async def verify_audit_proof_handler(ctx: Context, query: QueryRequest):
         """
         Query handler for proof verification.
-        Query format: {"method": "verifyAuditProof", "proofId": "...", "auditorId": "..."}
+        Query format: {"method": "verifyAuditProof", "proof_id": "...", "auditor_id": "..."}
         """
-        if query.get("method") == "verifyAuditProof":
-            proof_id = query.get("proofId")
-            auditor_id = query.get("auditorId")
+        if query.method == "verifyAuditProof":
+            proof_id = query.proof_id
+            auditor_id = query.auditor_id
             
             if not proof_id:
-                return {"error": "proofId is required"}
+                return {"error": "proof_id is required"}
             
             result = await verify_audit_proof(proof_id, auditor_id)
             state["verified_proofs"][proof_id] = result.to_dict()

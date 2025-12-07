@@ -2,18 +2,6 @@
 
 import React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { WagmiProvider } from 'wagmi';
-import { mainnet, sepolia, polygon, arbitrum } from 'wagmi/chains';
-import { getDefaultConfig, RainbowKitProvider } from '@rainbow-me/rainbowkit';
-import '@rainbow-me/rainbowkit/styles.css';
-
-// Create wagmi config with RainbowKit
-const config = getDefaultConfig({
-  appName: '0xGuard',
-  projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || 'default-project-id',
-  chains: [mainnet, sepolia, polygon, arbitrum],
-  ssr: true,
-});
 
 // Create a QueryClient instance
 function makeQueryClient() {
@@ -39,17 +27,14 @@ function getQueryClient() {
   }
 }
 
+// Mock WalletProvider - no wallet connections for hackathon demo
 export function WalletProvider({ children }: { children: React.ReactNode }) {
   const queryClient = getQueryClient();
 
   return (
-    <WagmiProvider config={config}>
-      <QueryClientProvider client={queryClient}>
-        <RainbowKitProvider>
-          {children}
-        </RainbowKitProvider>
-      </QueryClientProvider>
-    </WagmiProvider>
+    <QueryClientProvider client={queryClient}>
+      {children}
+    </QueryClientProvider>
   );
 }
 

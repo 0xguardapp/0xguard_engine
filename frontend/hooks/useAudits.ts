@@ -7,6 +7,7 @@ interface UseAuditsOptions {
   autoRefresh?: boolean;
   refreshInterval?: number;
   status?: Audit['status'];
+  owner?: string; // Filter by owner wallet address
 }
 
 interface UseAuditsReturn {
@@ -23,7 +24,7 @@ interface UseAuditsReturn {
 }
 
 export function useAudits(options: UseAuditsOptions = {}): UseAuditsReturn {
-  const { autoRefresh = false, refreshInterval = 30000, status } = options;
+  const { autoRefresh = false, refreshInterval = 30000, status, owner } = options;
   
   const [audits, setAudits] = useState<Audit[]>([]);
   const [loading, setLoading] = useState(true);
@@ -38,6 +39,9 @@ export function useAudits(options: UseAuditsOptions = {}): UseAuditsReturn {
       const params = new URLSearchParams();
       if (status) {
         params.append('status', status);
+      }
+      if (owner) {
+        params.append('owner', owner);
       }
       
       const queryString = params.toString();
@@ -74,7 +78,7 @@ export function useAudits(options: UseAuditsOptions = {}): UseAuditsReturn {
     } finally {
       setLoading(false);
     }
-  }, [status]);
+  }, [status, owner]);
 
   useEffect(() => {
     fetchAudits();

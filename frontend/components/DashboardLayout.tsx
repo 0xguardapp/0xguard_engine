@@ -77,62 +77,30 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                       <div className="w-2 h-2 rounded-full bg-blue-500"></div>
                       <span className="text-xs text-gray-400">Audits Run</span>
                     </div>
-                    <span className="text-xs text-white">24 / 100</span>
+                    <span className="text-xs text-white">0 / 100</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <div className="w-2 h-2 rounded-full bg-green-500"></div>
                       <span className="text-xs text-gray-400">Vulnerabilities Found</span>
                     </div>
-                    <span className="text-xs text-white">156</span>
+                    <span className="text-xs text-white">0</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <div className="w-2 h-2 rounded-full bg-amber-500"></div>
                       <span className="text-xs text-gray-400">Active Audits</span>
                     </div>
-                    <span className="text-xs text-white">3</span>
+                    <span className="text-xs text-white">0</span>
                   </div>
                 </div>
-              </div>
-
-              {/* Alerts Section */}
-              <div className="bg-[#09090b] border border-[#27272a] rounded-lg p-4">
-                <h3 className="text-sm font-semibold mb-2">Alerts</h3>
-                <p className="text-xs text-gray-400 mb-3">
-                  Get alerted for anomalies. Automatically monitor your audits for issues and get notified.
-                </p>
-                <button className="w-full px-3 py-2 bg-white text-black rounded-lg text-xs font-medium hover:bg-gray-100 transition-all duration-200">
-                  Upgrade to Pro
-                </button>
               </div>
 
               {/* Recent Activity */}
               <div className="bg-[#09090b] border border-[#27272a] rounded-lg p-4">
                 <h3 className="text-sm font-semibold mb-3">Recent Activity</h3>
                 <div className="space-y-3">
-                  <div className="flex items-start gap-2">
-                    <div className="w-6 h-6 rounded-full bg-gradient-to-br from-purple-500/20 to-blue-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <svg className="w-3 h-3 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                      </svg>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs text-gray-300 truncate">New audit started</p>
-                      <p className="text-xs text-gray-500">2 hours ago</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <div className="w-6 h-6 rounded-full bg-gradient-to-br from-green-500/20 to-emerald-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <svg className="w-3 h-3 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-                      </svg>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs text-gray-300 truncate">Audit completed</p>
-                      <p className="text-xs text-gray-500">1 day ago</p>
-                    </div>
-                  </div>
+                  <div className="text-xs text-gray-500">No recent activity</div>
                 </div>
               </div>
             </div>

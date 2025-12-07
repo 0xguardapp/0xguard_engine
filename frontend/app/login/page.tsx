@@ -1,21 +1,51 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { ConnectButton } from '@rainbow-me/rainbowkit';
-import { useWallet } from '@/hooks/useWallet';
+import { useAccount, useConnect, useDisconnect } from 'wagmi';
+import {
+  metaMaskConnector,
+  coinbaseConnector,
+  phantomConnector,
+} from '@/lib/walletConnectors';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { isConnected, address, connectWallet, isLoading, walletType } = useWallet();
+  const { address, isConnected } = useAccount();
+  const { connect } = useConnect();
+  const { disconnect } = useDisconnect();
+  const [isConnecting, setIsConnecting] = useState(false);
 
   // Redirect to dashboard if already connected
   useEffect(() => {
     if (isConnected && address) {
-      router.push('/');
+      // Register agent and redirect
+      fetch('/api/register-agent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agent_address: address }),
+      })
+        .then(() => {
+          router.push('/');
+        })
+        .catch((error) => {
+          console.error('Failed to register agent:', error);
+          // Still redirect even if registration fails
+          router.push('/');
+        });
     }
   }, [isConnected, address, router]);
+
+  const handleConnect = async (connector: any) => {
+    try {
+      setIsConnecting(true);
+      connect({ connector });
+    } catch (error) {
+      console.error('Connection error:', error);
+      setIsConnecting(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-black flex items-center justify-center p-6">
@@ -34,7 +64,7 @@ export default function LoginPage() {
           </div>
           <h1 className="text-3xl font-semibold tracking-tight">0xGuard</h1>
           <p className="text-gray-400 text-sm">
-            Connect your wallet to access the dashboard
+            Connect your wallet to get started
           </p>
         </div>
 
@@ -43,107 +73,85 @@ export default function LoginPage() {
           <div className="space-y-2">
             <h2 className="text-xl font-semibold">Connect Wallet</h2>
             <p className="text-gray-400 text-sm">
-              Connect your browser extension wallet to continue
+              Choose a wallet to connect to 0xGuard
             </p>
           </div>
 
-          <div className="space-y-4">
-            {/* Ethereum Wallet Connection */}
-            {typeof window !== 'undefined' && (window as any).ethereum ? (
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-300">
-                  Ethereum Wallet
-                </label>
-                <div className="flex justify-center">
-                  <ConnectButton.Custom>
-                    {({
-                      account,
-                      chain,
-                      openAccountModal,
-                      openChainModal,
-                      openConnectModal,
-                      mounted,
-                    }) => {
-                      const ready = mounted;
-                      const connected = ready && account && chain;
-
-                      return (
-                        <div
-                          {...(!ready && {
-                            'aria-hidden': true,
-                            style: {
-                              opacity: 0,
-                              pointerEvents: 'none',
-                              userSelect: 'none',
-                            },
-                          })}
-                        >
-                          {!connected ? (
-                            <button
-                              onClick={openConnectModal}
-                              type="button"
-                              className="w-full px-6 py-3 bg-white text-black rounded-lg border border-[#27272a] hover:bg-gray-100 transition-all duration-200 text-sm font-medium"
-                            >
-                              Connect Wallet
-                            </button>
-                          ) : (
-                            <div className="w-full px-6 py-3 bg-green-500/10 border border-green-500/20 rounded-lg text-center">
-                              <p className="text-sm text-green-400">
-                                Connected: {account.displayName}
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    }}
-                  </ConnectButton.Custom>
-                </div>
+          <div className="space-y-3">
+            {/* MetaMask */}
+            <button
+              onClick={() => handleConnect(metaMaskConnector)}
+              disabled={isConnecting}
+              className="w-full flex items-center gap-4 px-4 py-3 bg-[#000000] border border-[#27272a] rounded-lg hover:bg-[#18181b] hover:border-[#3f3f46] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Image
+                src="/MetaMask-icon-fox.svg"
+                alt="MetaMask"
+                width={32}
+                height={32}
+                className="w-8 h-8"
+              />
+              <div className="flex-1 text-left">
+                <div className="font-medium text-white">MetaMask</div>
+                <div className="text-xs text-gray-400">Connect using MetaMask</div>
               </div>
-            ) : null}
+              {isConnecting && (
+                <div className="w-4 h-4 border-2 border-gray-600 border-t-white rounded-full animate-spin"></div>
+              )}
+            </button>
 
-            {/* Keplr Wallet Connection */}
-            {typeof window !== 'undefined' && 'keplr' in window ? (
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-300">
-                  Keplr Wallet
-                </label>
-                <button
-                  onClick={connectWallet}
-                  disabled={isLoading || isConnected}
-                  className="w-full px-6 py-3 bg-white text-black rounded-lg border border-[#27272a] hover:bg-gray-100 transition-all duration-200 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isLoading
-                    ? 'Connecting...'
-                    : isConnected && walletType === 'keplr'
-                    ? 'Connected'
-                    : 'Connect Keplr'}
-                </button>
+            {/* Coinbase Wallet */}
+            <button
+              onClick={() => handleConnect(coinbaseConnector)}
+              disabled={isConnecting}
+              className="w-full flex items-center gap-4 px-4 py-3 bg-[#000000] border border-[#27272a] rounded-lg hover:bg-[#18181b] hover:border-[#3f3f46] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Image
+                src="/download.png"
+                alt="Base Wallet"
+                width={32}
+                height={32}
+                className="w-8 h-8"
+              />
+              <div className="flex-1 text-left">
+                <div className="font-medium text-white">Base Wallet</div>
+                <div className="text-xs text-gray-400">Connect using Coinbase Wallet</div>
               </div>
-            ) : null}
+              {isConnecting && (
+                <div className="w-4 h-4 border-2 border-gray-600 border-t-white rounded-full animate-spin"></div>
+              )}
+            </button>
 
-            {/* No Wallet Available */}
-            {typeof window !== 'undefined' &&
-            !(window as any).ethereum &&
-            !('keplr' in window) ? (
-              <div className="p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
-                <p className="text-sm text-yellow-400 text-center">
-                  No wallet extension detected. Please install MetaMask or another
-                  Ethereum wallet extension.
-                </p>
+            {/* Phantom */}
+            <button
+              onClick={() => handleConnect(phantomConnector)}
+              disabled={isConnecting}
+              className="w-full flex items-center gap-4 px-4 py-3 bg-[#000000] border border-[#27272a] rounded-lg hover:bg-[#18181b] hover:border-[#3f3f46] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Image
+                src="/4850.sp3ow1.192x192.png"
+                alt="Phantom"
+                width={32}
+                height={32}
+                className="w-8 h-8"
+              />
+              <div className="flex-1 text-left">
+                <div className="font-medium text-white">Phantom</div>
+                <div className="text-xs text-gray-400">Connect using Phantom</div>
               </div>
-            ) : null}
+              {isConnecting && (
+                <div className="w-4 h-4 border-2 border-gray-600 border-t-white rounded-full animate-spin"></div>
+              )}
+            </button>
           </div>
 
           {/* Status Message */}
-          {isConnected && address && (
+          {isConnecting && (
             <div className="pt-4 border-t border-[#27272a]">
-              <div className="flex items-center gap-2 text-sm text-green-400">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <span>Wallet connected successfully</span>
+              <div className="flex items-center gap-2 text-sm text-blue-400">
+                <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                <span>Connecting wallet...</span>
               </div>
-              <p className="text-xs text-gray-500 mt-2 font-mono">
-                {address}
-              </p>
             </div>
           )}
         </div>

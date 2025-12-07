@@ -6,176 +6,128 @@ Provides REST API endpoints for frontend to interact with agents.
 """
 import os
 import sys
-import asyncio
 import subprocess
+import time
+import logging
+import json
+import uuid
+import random
 from pathlib import Path
-from typing import Optional, Dict, Any, List
+from typing import Dict, Any, Optional
 from datetime import datetime
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, Path as PathParam, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 import uvicorn
-import json
+
+# Configure logging first
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout)
+    ]
+)
+logger = logging.getLogger(__name__)
 
 # Add agent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent))
 
-# WebSocket connection manager
-class ConnectionManager:
-    """Manages WebSocket connections for real-time status updates"""
-    def __init__(self):
-        self.active_connections: List[WebSocket] = []
-    
-    async def connect(self, websocket: WebSocket):
-        await websocket.accept()
-        self.active_connections.append(websocket)
-    
-    def disconnect(self, websocket: WebSocket):
-        if websocket in self.active_connections:
-            self.active_connections.remove(websocket)
-    
-    async def broadcast(self, message: dict):
-        """Broadcast message to all connected clients"""
-        disconnected = []
-        for connection in self.active_connections:
-            try:
-                await connection.send_json(message)
-            except Exception:
-                disconnected.append(connection)
-        
-        # Remove disconnected clients
-        for connection in disconnected:
-            self.disconnect(connection)
+# Load configuration from config.py (which handles .env loading)
+try:
+    from config import get_config
+    config = get_config()
+    logger.info("Configuration loaded from config.py")
+except Exception as e:
+    logger.warning(f"Failed to load config.py: {e}, falling back to environment variables")
+    config = None
+
+# Global dictionary to store agent processes
+processes: Dict[str, subprocess.Popen] = {}
+
+# Audit storage file path
+AUDITS_STORAGE_FILE = Path(__file__).parent / "audits.json"
 
 
-connection_manager = ConnectionManager()
-
-# Global state for agent processes
-class AgentState:
-    """Global state to track running agent processes"""
-    judge_process: Optional[subprocess.Popen] = None
-    target_process: Optional[subprocess.Popen] = None
-    red_team_process: Optional[subprocess.Popen] = None
-    judge_address: Optional[str] = None
-    target_address: Optional[str] = None
-    red_team_address: Optional[str] = None
-    started_at: Optional[datetime] = None
-    target_address_config: Optional[str] = None
-    intensity: Optional[str] = None
-    # Enhanced status tracking
-    judge_last_activity: Optional[datetime] = None
-    target_last_activity: Optional[datetime] = None
-    red_team_last_activity: Optional[datetime] = None
-    judge_message_count: int = 0
-    target_message_count: int = 0
-    red_team_message_count: int = 0
-    judge_errors: List[str] = []
-    target_errors: List[str] = []
-    red_team_errors: List[str] = []
-
-
-agent_state = AgentState()
-
-
-# Pydantic models
+# Pydantic models for request/response
 class StartAgentsRequest(BaseModel):
+    """Request model for starting agents"""
     targetAddress: str = Field(..., description="Target contract address to audit")
     intensity: str = Field(default="quick", description="Audit intensity: 'quick' or 'deep'")
 
 
-class AgentStatus(BaseModel):
-    is_running: bool
-    port: Optional[int] = None
-    address: Optional[str] = None
-    last_seen: Optional[str] = None
-    health_status: str = Field(default="down", description="healthy | degraded | down")
-    last_activity: Optional[str] = None
-    message_count: int = 0
-    recent_errors: List[str] = Field(default_factory=list)
-    connection_status: Dict[str, bool] = Field(default_factory=dict, description="Connection status to other agents")
-
-
-class AgentsStatusResponse(BaseModel):
-    judge: AgentStatus
-    target: AgentStatus
-    red_team: AgentStatus
-    started_at: Optional[str] = None
-
-
 class StartAgentsResponse(BaseModel):
+    """Response model for starting agents"""
     success: bool
     message: str
-    agents: Optional[Dict[str, Any]] = None
-    error: Optional[str] = None
+    agents: Dict[str, Dict[str, Any]]
 
 
-async def check_process_health(process: Optional[subprocess.Popen]) -> str:
-    """Check if a process is healthy"""
-    if process is None:
-        return "down"
-    
-    poll_result = process.poll()
-    if poll_result is None:
-        return "healthy"
-    else:
-        return "down"
+class AgentStatusResponse(BaseModel):
+    """Response model for agent status"""
+    target: bool
+    judge: bool
+    red_team: bool
+    ports: Dict[str, int]
 
 
-def get_agent_address_from_logs(agent_name: str) -> Optional[str]:
-    """Try to extract agent address from logs.json"""
-    try:
-        logs_path = Path(__file__).parent.parent / "logs.json"
-        if not logs_path.exists():
-            return None
-        
-        import json
-        with open(logs_path, 'r') as f:
-            logs = json.load(f)
-        
-        # Search for agent startup log
-        for log_entry in reversed(logs[-100:]):  # Check last 100 entries
-            if isinstance(log_entry, dict):
-                actor = log_entry.get('actor', '')
-                message = log_entry.get('message', '')
-                
-                if agent_name.lower() in actor.lower():
-                    # Try to extract address from message
-                    if 'started' in message.lower() and 'agent' in message.lower():
-                        # Look for address pattern
-                        import re
-                        # Pattern for agent addresses (fetch addresses)
-                        address_pattern = r'fetch1[a-z0-9]{38}'
-                        match = re.search(address_pattern, message)
-                        if match:
-                            return match.group(0)
-        
-        return None
-    except Exception:
-        return None
+class RegisterAgentRequest(BaseModel):
+    """Request model for registering an agent"""
+    agent_address: str = Field(..., description="Ethereum address of the agent to register")
+
+
+class RegisterAgentResponse(BaseModel):
+    """Response model for agent registration"""
+    success: bool
+    message: str
+    agent_address: Optional[str] = None
+    transaction_hash: Optional[str] = None
+
+
+class CreateAuditRequest(BaseModel):
+    """Request model for creating a new audit"""
+    name: str = Field(..., description="Project name")
+    description: Optional[str] = Field(None, description="Project description")
+    target: Optional[str] = Field(None, description="Target URL/Repo")
+    targetAddress: Optional[str] = Field(None, description="Target wallet/contract address")
+    tags: Optional[list[str]] = Field(None, description="Tags array")
+    difficulty: Optional[str] = Field(None, description="Difficulty level")
+    priority: Optional[str] = Field(None, description="Priority level")
+    wallet: str = Field(..., description="Wallet address of the creator")
+
+
+class CreateAuditResponse(BaseModel):
+    """Response model for audit creation"""
+    audit_id: str
+    name: str
+    created_at: str
+    status: str
+    metadata: Optional[Dict[str, Any]] = None
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup and shutdown events"""
+    logger.info("Starting Agent API Server...")
     # Startup
-    # Start background task for status broadcasting
-    broadcast_task = asyncio.create_task(status_broadcast_task())
     yield
     # Shutdown - cleanup agent processes
-    broadcast_task.cancel()
-    try:
-        await broadcast_task
-    except asyncio.CancelledError:
-        pass
-    
-    if agent_state.judge_process:
-        agent_state.judge_process.terminate()
-    if agent_state.target_process:
-        agent_state.target_process.terminate()
-    if agent_state.red_team_process:
-        agent_state.red_team_process.terminate()
+    logger.info("Shutting down Agent API Server, cleaning up agent processes...")
+    for name, proc in list(processes.items()):
+        if proc and proc.poll() is None:
+            logger.info(f"Terminating {name} agent process...")
+            try:
+                proc.terminate()
+                proc.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                logger.warning(f"Force killing {name} agent process...")
+                proc.kill()
+            except Exception as e:
+                logger.error(f"Error terminating {name} agent: {e}")
+    processes.clear()
+    logger.info("Shutdown complete")
 
 
 # Initialize FastAPI app
@@ -206,425 +158,644 @@ async def health_check():
 
 
 @app.post("/api/agents/start", response_model=StartAgentsResponse, tags=["Agents"])
-async def start_agents(request: StartAgentsRequest):
+def start_agents(request: StartAgentsRequest):
     """
-    Start all three agents (Judge, Target, Red Team)
+    Start all three agents (Target, Judge, Red Team)
     
     Args:
         request: StartAgentsRequest with targetAddress and intensity
         
     Returns:
-        StartAgentsResponse with agent addresses and status
+        StartAgentsResponse with agent ports
+        
+    Raises:
+        HTTPException: If any agent fails to start
     """
+    logger.info(f"Received request to start agents: targetAddress={request.targetAddress}, intensity={request.intensity}")
+    
     # Check if agents are already running
-    if agent_state.judge_process and agent_state.judge_process.poll() is None:
-        return StartAgentsResponse(
-            success=False,
-            message="Agents are already running. Stop them first before starting new ones.",
-            error="Agents already running"
+    running_agents = [name for name, proc in processes.items() if proc and proc.poll() is None]
+    if running_agents:
+        logger.warning(f"Agents already running: {running_agents}")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Agents already running: {', '.join(running_agents)}. Stop them first."
         )
     
+    agent_dir = Path(__file__).parent
+    # Use venv python if available, otherwise use sys.executable
+    venv_python = agent_dir / "venv" / "bin" / "python3"
+    if venv_python.exists():
+        python_executable = str(venv_python)
+        logger.info(f"Using venv Python: {python_executable}")
+    else:
+    python_executable = sys.executable
+        logger.info(f"Using system Python: {python_executable}")
+    
+    # Get port configuration from config.py
+    if config:
+        target_port = str(config.TARGET_PORT)
+        judge_port = str(config.JUDGE_PORT)
+        red_team_port = str(config.RED_TEAM_PORT)
+    else:
+        target_port = os.getenv("TARGET_PORT", "8000")
+        judge_port = os.getenv("JUDGE_PORT", "8002")
+        red_team_port = os.getenv("RED_TEAM_PORT", "8001")
+    
+    logger.info(f"Agent ports - Target: {target_port}, Judge: {judge_port}, Red Team: {red_team_port}")
+    
     try:
-        agent_dir = Path(__file__).parent
-        python_executable = sys.executable
+        # Start Judge Agent first (needs to be running to receive messages)
+        logger.info("Starting Judge agent...")
+        try:
+            judge_env = os.environ.copy()
+            judge_process = subprocess.Popen(
+                [python_executable, "judge.py"],
+                cwd=str(agent_dir),
+                env=judge_env,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True
+            )
+            processes['judge'] = judge_process
+            logger.info(f"Judge agent started with PID: {judge_process.pid}")
+        except Exception as e:
+            logger.error(f"Failed to start Judge agent: {e}")
+            raise HTTPException(status_code=500, detail=f"Failed to start Judge agent: {str(e)}")
         
-        # Store configuration
-        agent_state.target_address_config = request.targetAddress
-        agent_state.intensity = request.intensity
-        agent_state.started_at = datetime.now()
+        # Wait for judge to initialize
+        time.sleep(2)
         
-        # Start Judge agent first (needs to be running first)
-        print(f"Starting Judge agent...")
-        judge_script = agent_dir / "run_judge.py"
-        agent_state.judge_process = subprocess.Popen(
-            [python_executable, str(judge_script)],
-            cwd=str(agent_dir),
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            env=os.environ.copy(),
-            text=True
-        )
+        # Start Target Agent (will discover judge through agentverse)
+        logger.info("Starting Target agent...")
+        try:
+            target_env = os.environ.copy()
+            target_process = subprocess.Popen(
+                [python_executable, "target.py"],
+                cwd=str(agent_dir),
+                env=target_env,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True
+            )
+            processes['target'] = target_process
+            logger.info(f"Target agent started with PID: {target_process.pid}")
+        except Exception as e:
+            logger.error(f"Failed to start Target agent: {e}")
+            # Cleanup judge agent
+            if 'judge' in processes:
+                processes['judge'].terminate()
+            raise HTTPException(status_code=500, detail=f"Failed to start Target agent: {str(e)}")
         
-        # Wait a moment for judge to initialize and read address from stdout
-        await asyncio.sleep(3)
+        time.sleep(2)
         
-        # Try to get judge address from stdout or logs
-        judge_address = None
-        if agent_state.judge_process.stdout:
-            try:
-                line = agent_state.judge_process.stdout.readline()
-                if "Judge agent started:" in line:
-                    import re
-                    address_match = re.search(r'fetch1[a-z0-9]{38}', line)
-                    if address_match:
-                        judge_address = address_match.group(0)
-            except:
-                pass
+        # Start Red Team Agent (will discover target and judge through agentverse)
+        logger.info("Starting Red Team agent...")
+        try:
+            red_team_env = os.environ.copy()
+            red_team_process = subprocess.Popen(
+                [python_executable, "red_team.py"],
+                cwd=str(agent_dir),
+                env=red_team_env,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True
+            )
+            processes['red_team'] = red_team_process
+            logger.info(f"Red Team agent started with PID: {red_team_process.pid}")
+        except Exception as e:
+            logger.error(f"Failed to start Red Team agent: {e}")
+            # Cleanup previously started agents
+            if 'target' in processes:
+                processes['target'].terminate()
+            if 'judge' in processes:
+                processes['judge'].terminate()
+            raise HTTPException(status_code=500, detail=f"Failed to start Red Team agent: {str(e)}")
         
-        if not judge_address:
-            judge_address = get_agent_address_from_logs("judge") or "fetch1..."  # Fallback
+        time.sleep(0.5)
         
-        agent_state.judge_address = judge_address
+        # Verify all processes are still running
+        failed_agents = []
+        for name, proc in processes.items():
+            if proc.poll() is not None:
+                failed_agents.append(name)
+                logger.error(f"{name} agent process exited immediately with code: {proc.returncode}")
         
-        # Start Target agent (needs judge address)
-        print(f"Starting Target agent...")
-        target_script = agent_dir / "run_target.py"
-        env = os.environ.copy()
-        env["JUDGE_ADDRESS"] = judge_address
-        agent_state.target_process = subprocess.Popen(
-            [python_executable, str(target_script)],
-            cwd=str(agent_dir),
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            env=env,
-            text=True
-        )
+        if failed_agents:
+            # Cleanup all processes
+            for name in list(processes.keys()):
+                if processes[name] and processes[name].poll() is None:
+                    processes[name].terminate()
+            processes.clear()
+            raise HTTPException(
+                status_code=500,
+                detail=f"Agents failed to start: {', '.join(failed_agents)}"
+            )
         
-        # Wait a moment for target to initialize
-        await asyncio.sleep(3)
-        
-        # Try to get target address
-        target_address = None
-        if agent_state.target_process.stdout:
-            try:
-                line = agent_state.target_process.stdout.readline()
-                if "Target agent started:" in line:
-                    import re
-                    address_match = re.search(r'fetch1[a-z0-9]{38}', line)
-                    if address_match:
-                        target_address = address_match.group(0)
-            except:
-                pass
-        
-        if not target_address:
-            target_address = get_agent_address_from_logs("target") or "fetch1..."  # Fallback
-        
-        agent_state.target_address = target_address
-        
-        # Start Red Team agent (needs target and judge addresses)
-        print(f"Starting Red Team agent...")
-        red_team_script = agent_dir / "run_red_team.py"
-        env = os.environ.copy()
-        env["TARGET_ADDRESS"] = target_address
-        env["JUDGE_ADDRESS"] = judge_address
-        agent_state.red_team_process = subprocess.Popen(
-            [python_executable, str(red_team_script)],
-            cwd=str(agent_dir),
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            env=env,
-            text=True
-        )
-        
-        # Wait a moment for red team to initialize
-        await asyncio.sleep(3)
-        
-        # Try to get red team address
-        red_team_address = None
-        if agent_state.red_team_process.stdout:
-            try:
-                line = agent_state.red_team_process.stdout.readline()
-                if "Red Team agent started:" in line:
-                    import re
-                    address_match = re.search(r'fetch1[a-z0-9]{38}', line)
-                    if address_match:
-                        red_team_address = address_match.group(0)
-            except:
-                pass
-        
-        if not red_team_address:
-            red_team_address = get_agent_address_from_logs("red_team") or "fetch1..."  # Fallback
-        
-        agent_state.red_team_address = red_team_address
-        
-        # Update state
-        agent_state.judge_address = judge_address
-        agent_state.target_address = target_address
-        agent_state.red_team_address = red_team_address
+        logger.info("All agents started successfully")
         
         return StartAgentsResponse(
             success=True,
-            message="All agents started successfully",
+            message="Agents started",
             agents={
-                "judge": {
-                    "address": judge_address,
-                    "port": 8002,
-                    "status": "running"
-                },
-                "target": {
-                    "address": target_address,
-                    "port": 8000,
-                    "status": "running"
-                },
-                "red_team": {
-                    "address": red_team_address,
-                    "port": 8001,
-                    "status": "running"
-                }
+                "target": {"port": target_port},
+                "judge": {"port": judge_port},
+                "red_team": {"port": red_team_port}
             }
         )
         
+    except HTTPException:
+        # Re-raise HTTP exceptions
+        raise
     except Exception as e:
-        # Cleanup on error
-        if agent_state.judge_process:
-            agent_state.judge_process.terminate()
-        if agent_state.target_process:
-            agent_state.target_process.terminate()
-        if agent_state.red_team_process:
-            agent_state.red_team_process.terminate()
+        logger.error(f"Unexpected error starting agents: {e}", exc_info=True)
+        # Cleanup any started processes
+        for name, proc in list(processes.items()):
+            if proc and proc.poll() is None:
+                try:
+                    proc.terminate()
+                except Exception:
+                    pass
+        processes.clear()
+        raise HTTPException(status_code=500, detail=f"Failed to start agents: {str(e)}")
+
+
+@app.get("/api/agents/status", response_model=AgentStatusResponse, tags=["Agents"])
+def get_agents_status():
+    """
+    Get status of all running agents
+    
+    Returns:
+        AgentStatusResponse with boolean status for each agent (True if alive, False if not)
+        and port information
+    """
+    logger.info("Checking agent status...")
+    
+    # Get port configuration from config.py
+    if config:
+        target_port = config.TARGET_PORT
+        judge_port = config.JUDGE_PORT
+        red_team_port = config.RED_TEAM_PORT
+    else:
+        target_port = int(os.getenv("TARGET_PORT", "8000"))
+        judge_port = int(os.getenv("JUDGE_PORT", "8002"))
+        red_team_port = int(os.getenv("RED_TEAM_PORT", "8001"))
+    
+    status = {
+        "target": False,
+        "judge": False,
+        "red_team": False,
+        "ports": {
+            "target": target_port,
+            "judge": judge_port,
+            "red_team": red_team_port
+        }
+    }
+    
+    for name in ["target", "judge", "red_team"]:
+        if name in processes:
+            proc = processes[name]
+            if proc:
+                is_alive = proc.poll() is None
+                status[name] = is_alive
+                if not is_alive:
+                    logger.warning(f"{name} agent is not running (exit code: {proc.returncode})")
+            else:
+                status[name] = False
+        else:
+            status[name] = False
+    
+    logger.info(f"Agent status: {status}")
+    return AgentStatusResponse(**status)
+
+
+@app.post("/register", response_model=RegisterAgentResponse, tags=["Agents"])
+def register_agent(request: RegisterAgentRequest):
+    """
+    Register an agent address with the Unibase registry and on-chain contracts.
+    
+    Args:
+        request: RegisterAgentRequest with agent_address (Ethereum address)
         
-        return StartAgentsResponse(
-            success=False,
-            message=f"Failed to start agents: {str(e)}",
-            error=str(e)
+    Returns:
+        RegisterAgentResponse with registration status
+        
+    Raises:
+        HTTPException: If registration fails
+    """
+    logger.info(f"Received agent registration request: agent_address={request.agent_address}")
+    
+    try:
+        # Import agent registry adapter
+        try:
+            from agent_registry_adapter import AgentRegistryAdapter
+            from unibase_agent_store import UnibaseAgentStore
+        except ImportError as e:
+            logger.error(f"Failed to import agent registry modules: {e}")
+            raise HTTPException(
+                status_code=500,
+                detail="Agent registry modules not available. Please ensure agent_registry_adapter and unibase_agent_store are installed."
+            )
+        
+        # Validate Ethereum address format
+        if not request.agent_address.startswith("0x") or len(request.agent_address) != 42:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid Ethereum address format: {request.agent_address}"
+            )
+        
+        # Initialize registry adapter
+        try:
+            adapter = AgentRegistryAdapter()
+            logger.info("AgentRegistryAdapter initialized successfully")
+        except Exception as e:
+            logger.error(f"Failed to initialize AgentRegistryAdapter: {e}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to initialize agent registry adapter: {str(e)}"
+            )
+        
+        # Register the agent
+        try:
+            logger.info(f"Registering agent address: {request.agent_address}")
+            
+            # Create default identity data if not provided
+            identity_data = {
+                "address": request.agent_address,
+                "registered_at": datetime.now().isoformat(),
+                "source": "wallet_connect"
+            }
+            
+            result = adapter.register_agent(request.agent_address, identity_data)
+            
+            # Check if registration was successful
+            # The result structure may vary, but check for common success indicators
+            if result.get("status") == "registered" or result.get("agent") == request.agent_address:
+                logger.info(f"Agent registered successfully: {request.agent_address}")
+                
+                # Extract transaction hash if available (for on-chain registrations)
+                transaction_hash = None
+                if isinstance(result, dict):
+                    # Check various possible keys for transaction hash
+                    transaction_hash = (
+                        result.get("transaction_hash") or
+                        result.get("tx_hash") or
+                        result.get("txHash")
+                    )
+                
+                return RegisterAgentResponse(
+                    success=True,
+                    message=result.get("message", "Agent registered successfully"),
+                    agent_address=request.agent_address,
+                    transaction_hash=transaction_hash
+                )
+            else:
+                error_msg = result.get("error", "Unknown registration error") if isinstance(result, dict) else "Registration failed"
+                logger.error(f"Agent registration failed: {error_msg}")
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Registration failed: {error_msg}"
+                )
+                
+        except HTTPException:
+            # Re-raise HTTP exceptions
+            raise
+        except Exception as e:
+            logger.error(f"Error during agent registration: {e}", exc_info=True)
+            raise HTTPException(
+                status_code=500,
+                detail=f"Registration error: {str(e)}"
+            )
+            
+    except HTTPException:
+        # Re-raise HTTP exceptions
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error in register_agent: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Internal server error: {str(e)}"
         )
 
 
-def get_connection_status(agent_type: str) -> Dict[str, bool]:
-    """
-    Get connection status for an agent to other agents.
-    
-    Args:
-        agent_type: Type of agent (judge, target, red_team)
-        
-    Returns:
-        Dictionary with connection status to other agents
-    """
-    connections = {}
-    
-    if agent_type == "judge":
-        connections["target"] = agent_state.target_process is not None and agent_state.target_process.poll() is None
-        connections["red_team"] = agent_state.red_team_process is not None and agent_state.red_team_process.poll() is None
-    elif agent_type == "target":
-        connections["judge"] = agent_state.judge_process is not None and agent_state.judge_process.poll() is None
-        connections["red_team"] = agent_state.red_team_process is not None and agent_state.red_team_process.poll() is None
-    elif agent_type == "red_team":
-        connections["judge"] = agent_state.judge_process is not None and agent_state.judge_process.poll() is None
-        connections["target"] = agent_state.target_process is not None and agent_state.target_process.poll() is None
-    
-    return connections
-
-
-@app.get("/api/agents/status", response_model=AgentsStatusResponse, tags=["Agents"])
-async def get_agents_status():
-    """
-    Get status of all running agents with enhanced information
-    
-    Returns:
-        AgentsStatusResponse with detailed status of each agent including:
-        - Health status
-        - Last activity timestamp
-        - Message counts
-        - Recent errors
-        - Connection status to other agents
-    """
-    judge_health = await check_process_health(agent_state.judge_process)
-    target_health = await check_process_health(agent_state.target_process)
-    red_team_health = await check_process_health(agent_state.red_team_process)
-    
-    # Try to get addresses from logs if not already stored
-    if not agent_state.judge_address:
-        agent_state.judge_address = get_agent_address_from_logs("judge")
-    if not agent_state.target_address:
-        agent_state.target_address = get_agent_address_from_logs("target")
-    if not agent_state.red_team_address:
-        agent_state.red_team_address = get_agent_address_from_logs("red_team")
-    
-    # Get recent errors (last 5)
-    judge_recent_errors = agent_state.judge_errors[-5:] if agent_state.judge_errors else []
-    target_recent_errors = agent_state.target_errors[-5:] if agent_state.target_errors else []
-    red_team_recent_errors = agent_state.red_team_errors[-5:] if agent_state.red_team_errors else []
-    
-    return AgentsStatusResponse(
-        judge=AgentStatus(
-            is_running=judge_health != "down",
-            port=8002,
-            address=agent_state.judge_address,
-            last_seen=agent_state.started_at.isoformat() if agent_state.started_at else None,
-            health_status=judge_health,
-            last_activity=agent_state.judge_last_activity.isoformat() if agent_state.judge_last_activity else None,
-            message_count=agent_state.judge_message_count,
-            recent_errors=judge_recent_errors,
-            connection_status=get_connection_status("judge")
-        ),
-        target=AgentStatus(
-            is_running=target_health != "down",
-            port=8000,
-            address=agent_state.target_address,
-            last_seen=agent_state.started_at.isoformat() if agent_state.started_at else None,
-            health_status=target_health,
-            last_activity=agent_state.target_last_activity.isoformat() if agent_state.target_last_activity else None,
-            message_count=agent_state.target_message_count,
-            recent_errors=target_recent_errors,
-            connection_status=get_connection_status("target")
-        ),
-        red_team=AgentStatus(
-            is_running=red_team_health != "down",
-            port=8001,
-            address=agent_state.red_team_address,
-            last_seen=agent_state.started_at.isoformat() if agent_state.started_at else None,
-            health_status=red_team_health,
-            last_activity=agent_state.red_team_last_activity.isoformat() if agent_state.red_team_last_activity else None,
-            message_count=agent_state.red_team_message_count,
-            recent_errors=red_team_recent_errors,
-            connection_status=get_connection_status("red_team")
-        ),
-        started_at=agent_state.started_at.isoformat() if agent_state.started_at else None
-    )
-
-
-async def status_broadcast_task():
-    """Background task to periodically broadcast agent status updates"""
-    while True:
-        try:
-            await asyncio.sleep(2)  # Broadcast every 2 seconds
-            status = await get_agents_status()
-            await connection_manager.broadcast(status.dict())
-        except Exception as e:
-            # Log error but continue broadcasting
-            print(f"Error in status broadcast: {e}")
-
-
-@app.post("/api/agents/stop", tags=["Agents"])
-async def stop_agents():
-    """
-    Stop all running agents
-    
-    Returns:
-        Success message
-    """
-    stopped = []
-    
-    if agent_state.judge_process and agent_state.judge_process.poll() is None:
-        agent_state.judge_process.terminate()
-        agent_state.judge_process.wait(timeout=5)
-        stopped.append("judge")
-    
-    if agent_state.target_process and agent_state.target_process.poll() is None:
-        agent_state.target_process.terminate()
-        agent_state.target_process.wait(timeout=5)
-        stopped.append("target")
-    
-    if agent_state.red_team_process and agent_state.red_team_process.poll() is None:
-        agent_state.red_team_process.terminate()
-        agent_state.red_team_process.wait(timeout=5)
-        stopped.append("red_team")
-    
-    # Reset state
-    agent_state.judge_process = None
-    agent_state.target_process = None
-    agent_state.red_team_process = None
-    agent_state.judge_address = None
-    agent_state.target_address = None
-    agent_state.red_team_address = None
-    agent_state.started_at = None
-    # Reset enhanced status
-    agent_state.judge_last_activity = None
-    agent_state.target_last_activity = None
-    agent_state.red_team_last_activity = None
-    agent_state.judge_message_count = 0
-    agent_state.target_message_count = 0
-    agent_state.red_team_message_count = 0
-    agent_state.judge_errors = []
-    agent_state.target_errors = []
-    agent_state.red_team_errors = []
-    
-    # Broadcast status update
-    status = await get_agents_status()
-    await connection_manager.broadcast(status.dict())
-    
-    return {
-        "success": True,
-        "message": f"Stopped agents: {', '.join(stopped) if stopped else 'none were running'}",
-        "stopped": stopped
-    }
-
-
-@app.websocket("/api/agents/status/stream")
-async def websocket_status_stream(websocket: WebSocket):
-    """
-    WebSocket endpoint for real-time agent status updates
-    
-    Clients connect to receive periodic status updates without polling.
-    Automatically sends status every 2 seconds.
-    """
-    await connection_manager.connect(websocket)
+def load_audits() -> list[Dict[str, Any]]:
+    """Load audits from JSON file storage"""
     try:
-        # Send initial status
-        status = await get_agents_status()
-        await websocket.send_json(status.dict())
-        
-        # Keep connection alive and handle ping/pong
-        while True:
-            try:
-                # Wait for client message (ping) or timeout
-                data = await asyncio.wait_for(websocket.receive_text(), timeout=30.0)
-                # Echo ping back as pong
-                if data == "ping":
-                    await websocket.send_text("pong")
-            except asyncio.TimeoutError:
-                # Send heartbeat
-                await websocket.send_text("heartbeat")
-    except WebSocketDisconnect:
-        connection_manager.disconnect(websocket)
+        if AUDITS_STORAGE_FILE.exists():
+            with open(AUDITS_STORAGE_FILE, 'r', encoding='utf-8') as f:
+                audits = json.load(f)
+                if isinstance(audits, list):
+                    return audits
+                return []
+        return []
     except Exception as e:
-        print(f"WebSocket error: {e}")
-        connection_manager.disconnect(websocket)
+        logger.error(f"Error loading audits: {e}", exc_info=True)
+        return []
 
 
-@app.get("/api/agents/{agent_type}/health", tags=["Agents"])
-async def get_agent_health(agent_type: str):
+def save_audits(audits: list[Dict[str, Any]]) -> bool:
+    """Save audits to JSON file storage"""
+    try:
+        AUDITS_STORAGE_FILE.parent.mkdir(parents=True, exist_ok=True)
+        with open(AUDITS_STORAGE_FILE, 'w', encoding='utf-8') as f:
+            json.dump(audits, f, indent=2, ensure_ascii=False)
+        return True
+    except Exception as e:
+        logger.error(f"Error saving audits: {e}", exc_info=True)
+        return False
+
+
+@app.get("/audits", tags=["Audits"])
+def get_all_audits(
+    owner: Optional[str] = Query(None, description="Filter by owner wallet address"),
+    status: Optional[str] = Query(None, description="Filter by status")
+):
     """
-    Get detailed health check for a specific agent
+    Get all audits, optionally filtered by owner wallet address and/or status.
     
     Args:
-        agent_type: Type of agent (judge, target, red_team)
+        owner: Optional wallet address to filter by
+        status: Optional status to filter by
         
     Returns:
-        Detailed health information for the agent
+        List of audit objects
     """
-    if agent_type == "judge":
-        process = agent_state.judge_process
-        address = agent_state.judge_address
-        last_activity = agent_state.judge_last_activity
-        message_count = agent_state.judge_message_count
-        errors = agent_state.judge_errors
-    elif agent_type == "target":
-        process = agent_state.target_process
-        address = agent_state.target_address
-        last_activity = agent_state.target_last_activity
-        message_count = agent_state.target_message_count
-        errors = agent_state.target_errors
-    elif agent_type == "red_team":
-        process = agent_state.red_team_process
-        address = agent_state.red_team_address
-        last_activity = agent_state.red_team_last_activity
-        message_count = agent_state.red_team_message_count
-        errors = agent_state.red_team_errors
-    else:
-        raise HTTPException(status_code=404, detail=f"Unknown agent type: {agent_type}")
+    logger.info(f"Received request for audits: owner={owner}, status={status}")
     
-    health = await check_process_health(process)
+    try:
+        audits = load_audits()
+        
+        # Filter by owner if provided
+        if owner:
+            audits = [a for a in audits if a.get("wallet", "").lower() == owner.lower()]
+            logger.info(f"Filtered by owner: {len(audits)} audits")
+        
+        # Filter by status if provided
+        if status:
+            audits = [a for a in audits if a.get("status", "").lower() == status.lower()]
+            logger.info(f"Filtered by status: {len(audits)} audits")
+        
+        # Convert to frontend format (map backend fields to frontend Audit interface)
+        frontend_audits = []
+        for audit in audits:
+            frontend_audit = {
+                "id": audit.get("audit_id", ""),
+                "targetAddress": audit.get("targetAddress") or audit.get("target") or "",
+                "status": audit.get("status", "pending"),
+                "createdAt": audit.get("created_at", ""),
+                "updatedAt": audit.get("updated_at", audit.get("created_at", "")),
+                "vulnerabilityCount": audit.get("vulnerabilityCount"),
+                "riskScore": audit.get("riskScore"),
+                "intensity": audit.get("intensity"),
+                "ownerAddress": audit.get("wallet"),
+                "name": audit.get("name"),
+                "description": audit.get("description"),
+                "target": audit.get("target"),
+                "tags": audit.get("tags", []),
+                "difficulty": audit.get("difficulty"),
+                "priority": audit.get("priority"),
+                "metadata": audit.get("metadata", {})
+            }
+            frontend_audits.append(frontend_audit)
+        
+        return {
+            "audits": frontend_audits,
+            "pagination": {
+                "total": len(frontend_audits),
+                "limit": 1000,
+                "offset": 0,
+                "hasMore": False
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Error retrieving audits: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Internal server error: {str(e)}"
+        )
+
+
+@app.post("/audit/create", response_model=CreateAuditResponse, tags=["Audits"])
+def create_audit(request: CreateAuditRequest):
+    """
+    Create a new audit project.
     
-    return {
-        "agent_type": agent_type,
-        "is_running": health != "down",
-        "health_status": health,
-        "address": address,
-        "last_activity": last_activity.isoformat() if last_activity else None,
-        "message_count": message_count,
-        "recent_errors": errors[-10:] if errors else [],
-        "error_count": len(errors),
-        "connection_status": get_connection_status(agent_type)
-    }
+    Args:
+        request: CreateAuditRequest with audit details
+        
+    Returns:
+        CreateAuditResponse with audit_id, name, created_at, status, and metadata
+        
+    Raises:
+        HTTPException: If audit creation fails
+    """
+    logger.info(f"Received audit creation request: name={request.name}, wallet={request.wallet}")
+    
+    try:
+        # Generate audit ID
+        audit_id = str(uuid.uuid4())
+        created_at = datetime.now().isoformat()
+        
+        # Generate random placeholder data for missing fields
+        placeholder_descriptions = [
+            "Comprehensive security audit of smart contract implementation",
+            "Full-stack security assessment and vulnerability analysis",
+            "Penetration testing and security review of decentralized application",
+            "Smart contract audit focusing on access control and reentrancy",
+            "Security analysis of DeFi protocol with focus on economic attacks",
+            "Comprehensive audit covering smart contracts, frontend, and infrastructure",
+            "Security review of blockchain application with emphasis on gas optimization",
+        ]
+        
+        placeholder_targets = [
+            "0x" + "".join(random.choices("0123456789abcdef", k=40)),
+            "https://github.com/example/contracts",
+            "https://example.com/api",
+            "https://app.example.com",
+        ]
+        
+        placeholder_tags = [
+            ["security", "smart-contract", "web3"],
+            ["defi", "ethereum", "audit"],
+            ["blockchain", "solidity", "security"],
+            ["web3", "crypto", "vulnerability"],
+            ["smart-contract", "security", "audit"],
+        ]
+        
+        placeholder_difficulties = ["low", "medium", "high", "critical"]
+        placeholder_priorities = ["low", "medium", "high", "urgent"]
+        placeholder_intensities = ["quick", "deep"]
+        
+        # Populate missing fields with random placeholders
+        description = request.description or random.choice(placeholder_descriptions)
+        target = request.target or random.choice(placeholder_targets)
+        targetAddress = request.targetAddress or request.target or target
+        tags = request.tags or random.choice(placeholder_tags)
+        difficulty = request.difficulty or random.choice(placeholder_difficulties)
+        priority = request.priority or random.choice(placeholder_priorities)
+        intensity = random.choice(placeholder_intensities)
+        
+        # Generate random metrics
+        vulnerability_count = random.randint(0, 15)
+        risk_score = random.randint(20, 95)
+        
+        # Build audit object
+        audit = {
+            "audit_id": audit_id,
+            "name": request.name,
+            "description": description,
+            "target": target,
+            "targetAddress": targetAddress,
+            "tags": tags,
+            "difficulty": difficulty,
+            "priority": priority,
+            "wallet": request.wallet,
+            "status": "pending",
+            "created_at": created_at,
+            "updated_at": created_at,
+            "vulnerabilityCount": vulnerability_count,
+            "riskScore": risk_score,
+            "intensity": intensity,
+            "metadata": {
+                "description": description,
+                "target": target,
+                "targetAddress": targetAddress,
+                "tags": tags,
+                "difficulty": difficulty,
+                "priority": priority,
+                "intensity": intensity,
+                "vulnerabilityCount": vulnerability_count,
+                "riskScore": risk_score,
+            }
+        }
+        
+        # Load existing audits
+        audits = load_audits()
+        
+        # Add new audit
+        audits.append(audit)
+        
+        # Save audits
+        if not save_audits(audits):
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to save audit to storage"
+            )
+        
+        logger.info(f"Audit created successfully: audit_id={audit_id}")
+        
+        return CreateAuditResponse(
+            audit_id=audit_id,
+            name=request.name,
+            created_at=created_at,
+            status="pending",
+            metadata=audit["metadata"]
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error creating audit: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Internal server error: {str(e)}"
+        )
+
+
+@app.get("/audit/{audit_id}/logs", tags=["Logs"])
+def get_audit_logs(audit_id: str = PathParam(..., description="Audit ID to retrieve logs for")):
+    """
+    Get logs for a specific audit ID.
+    
+    Args:
+        audit_id: The audit ID to retrieve logs for
+        
+    Returns:
+        JSON object with logs array and metadata
+        
+    Raises:
+        HTTPException: If logs cannot be retrieved
+    """
+    logger.info(f"Received request for audit logs: audit_id={audit_id}")
+    
+    try:
+        # Import redis client
+        try:
+            from redis_client import get_logs, is_redis_available
+        except ImportError:
+            logger.warning("redis_client module not available, returning empty logs")
+            return {
+                "success": True,
+                "audit_id": audit_id,
+                "logs": [],
+                "count": 0,
+                "message": "Redis client not available, logs may not be stored"
+            }
+        
+        # Check if Redis is available
+        if not is_redis_available():
+            logger.warning("Redis not available, returning empty logs")
+            return {
+                "success": True,
+                "audit_id": audit_id,
+                "logs": [],
+                "count": 0,
+                "message": "Redis not available, logs may not be stored"
+            }
+        
+        # Get logs from Redis
+        try:
+            logs = get_logs(audit_id=audit_id, limit=1000, offset=0)
+            logger.info(f"Retrieved {len(logs)} log entries for audit {audit_id}")
+            
+            return {
+                "success": True,
+                "audit_id": audit_id,
+                "logs": logs,
+                "count": len(logs)
+            }
+        except Exception as e:
+            logger.error(f"Error retrieving logs from Redis: {e}", exc_info=True)
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to retrieve logs: {str(e)}"
+            )
+            
+    except HTTPException:
+        # Re-raise HTTP exceptions
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error in get_audit_logs: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Internal server error: {str(e)}"
+        )
 
 
 def main():
     """Run the API server"""
-    port = int(os.getenv("AGENT_API_PORT", "8003"))
+    # Get port from config.py
+    if config:
+        port = config.AGENT_API_PORT
+        host = "0.0.0.0"
+        logger.info(f"Starting Agent API Server on {host}:{port}")
+        logger.info(f"Configuration loaded - TARGET_PORT: {config.TARGET_PORT}, "
+                    f"JUDGE_PORT: {config.JUDGE_PORT}, "
+                    f"RED_TEAM_PORT: {config.RED_TEAM_PORT}, "
+                    f"AGENT_API_PORT: {config.AGENT_API_PORT}, "
+                    f"MIDNIGHT_API_URL: {config.MIDNIGHT_API_URL}")
+    else:
+        port = int(os.getenv("AGENT_API_PORT", "8003"))
+        host = "0.0.0.0"
+        logger.info(f"Starting Agent API Server on {host}:{port}")
+        logger.info(f"Environment variables loaded - TARGET_PORT: {os.getenv('TARGET_PORT', '8000')}, "
+                    f"JUDGE_PORT: {os.getenv('JUDGE_PORT', '8002')}, "
+                    f"RED_TEAM_PORT: {os.getenv('RED_TEAM_PORT', '8001')}")
+    
     uvicorn.run(
         "api_server:app",
-        host="0.0.0.0",
+        host=host,
         port=port,
         reload=False,  # Disable reload for production
         log_level="info",
@@ -633,4 +804,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

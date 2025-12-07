@@ -16,6 +16,20 @@ import asyncio
 sys.path.insert(0, str(Path(__file__).parent))
 from logger import log
 
+# Import midnight_client for real API calls
+try:
+    from midnight_client import (
+        query_audit,
+        check_midnight_health,
+        MIDNIGHT_API_URL,
+        MIDNIGHT_SIMULATION_MODE
+    )
+    MIDNIGHT_CLIENT_AVAILABLE = True
+except ImportError:
+    MIDNIGHT_CLIENT_AVAILABLE = False
+    MIDNIGHT_API_URL = os.getenv("MIDNIGHT_API_URL", "http://localhost:8100")
+    MIDNIGHT_SIMULATION_MODE = os.getenv("MIDNIGHT_SIMULATION_MODE", "false").lower() == "true"
+
 # Configuration
 MIDNIGHT_DEVNET_URL = os.getenv("MIDNIGHT_DEVNET_URL", "http://localhost:6300")
 MIDNIGHT_BRIDGE_URL = os.getenv("MIDNIGHT_BRIDGE_URL", "http://localhost:3000")
@@ -274,7 +288,7 @@ async def get_verification_proof(proof_id: str, format: str = "json") -> Optiona
 
 async def _fetch_proof_from_contract(proof_id: str) -> Optional[Dict[str, Any]]:
     """
-    Fetch proof data from Midnight contract.
+    Fetch proof data from Midnight contract via FastAPI server.
     
     Args:
         proof_id: The audit ID or proof hash
@@ -283,7 +297,26 @@ async def _fetch_proof_from_contract(proof_id: str) -> Optional[Dict[str, Any]]:
         dict: Proof data or None if not found
     """
     try:
-        # Try to fetch from bridge service first
+        # Try using midnight_client first (preferred method)
+        if MIDNIGHT_CLIENT_AVAILABLE and not MIDNIGHT_SIMULATION_MODE:
+            log("ProofVerifier", f"Querying Midnight API for proof: {proof_id[:16]}...", "🔍", "info")
+            
+            result = await query_audit(proof_id)
+            
+            if result.found:
+                return {
+                    "audit_id": result.audit_id,
+                    "is_verified": result.is_verified,
+                    "auditor_id": "",  # Not returned by query_audit
+                    "proof_hash": result.proof_hash or "",
+                    "proof_timestamp": datetime.now().isoformat(),
+                    "block_height": None,
+                }
+            else:
+                log("ProofVerifier", f"Proof not found via Midnight API: {proof_id[:16]}...", "⚠️", "info")
+                # Fall through to other methods
+        
+        # Try to fetch from bridge service
         if MIDNIGHT_BRIDGE_URL:
             async with httpx.AsyncClient(timeout=10.0) as client:
                 response = await client.post(
@@ -302,12 +335,38 @@ async def _fetch_proof_from_contract(proof_id: str) -> Optional[Dict[str, Any]]:
                             "block_height": data.get("blockHeight"),
                         }
         
+        # Try direct API call to Midnight FastAPI
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.post(
+                    f"{MIDNIGHT_API_URL}/api/query-audit",
+                    json={"audit_id": proof_id},
+                    headers={"Content-Type": "application/json"}
+                )
+                if response.status_code == 200:
+                    data = response.json()
+                    if data.get("found"):
+                        return {
+                            "audit_id": proof_id,
+                            "is_verified": data.get("is_verified", False),
+                            "auditor_id": data.get("auditor_id", ""),
+                            "proof_hash": data.get("proof_hash", ""),
+                            "proof_timestamp": datetime.now().isoformat(),
+                            "block_height": None,
+                        }
+        except Exception as api_error:
+            log("ProofVerifier", f"Direct API query failed: {str(api_error)}", "⚠️", "info")
+        
         # Fallback: Query contract directly via indexer
         if MIDNIGHT_CONTRACT_ADDRESS and MIDNIGHT_INDEXER:
             return await _query_contract_via_indexer(proof_id)
         
-        # Final fallback: Simulate for development
-        return _simulate_proof_fetch(proof_id)
+        # Final fallback: Simulate for development (only if simulation mode enabled)
+        if MIDNIGHT_SIMULATION_MODE:
+            log("ProofVerifier", "Using simulation mode for proof fetch", "🔍", "info")
+            return _simulate_proof_fetch(proof_id)
+        
+        return None
         
     except Exception as e:
         log("ProofVerifier", f"Error fetching proof: {str(e)}", "❌", "error")

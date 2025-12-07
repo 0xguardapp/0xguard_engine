@@ -1,15 +1,28 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ConnectButton } from '@rainbow-me/rainbowkit';
-import { useWallet } from '@/hooks/useWallet';
+import ConnectWalletMenu from '@/components/ConnectWalletMenu';
+import { useAccount, useDisconnect } from 'wagmi';
 
 export default function Header() {
   const router = useRouter();
-  const { isConnected, address, isLoading, connectWallet, disconnectWallet, getTruncatedAddress, walletType } = useWallet();
+  const { address, isConnected } = useAccount();
+  const { disconnect } = useDisconnect();
+
+  useEffect(() => {
+    if (isConnected && address) {
+      fetch('/api/register-agent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agent_address: address }),
+      }).catch((error) => {
+        console.error('Failed to register agent:', error);
+      });
+    }
+  }, [isConnected, address]);
 
   return (
     <header className="border-b border-[#27272a] bg-black sticky top-0 z-50 backdrop-blur-sm bg-black/95">
@@ -30,110 +43,29 @@ export default function Header() {
           <div className="text-gray-400 text-sm">my-team / audit-production</div>
         </div>
         <div className="flex items-center gap-3">
-          {isConnected && address ? (
-            <>
-              {walletType === 'ethereum' ? (
-                // Use RainbowKit's ConnectButton for Ethereum wallets (it handles connected state)
-                <div className="[&>div>button]:px-3 [&>div>button]:py-1.5 [&>div>button]:bg-[#09090b] [&>div>button]:rounded-lg [&>div>button]:border [&>div>button]:border-[#27272a] [&>div>button]:hover:border-gray-700 [&>div>button]:transition-all [&>div>button]:duration-200">
-                  <ConnectButton.Custom>
-                    {({
-                      account,
-                      chain,
-                      openAccountModal,
-                      openChainModal,
-                      openConnectModal,
-                      mounted,
-                    }) => {
-                      const ready = mounted;
-                      const connected = ready && account && chain;
-
-                      return (
-                        <div
-                          {...(!ready && {
-                            'aria-hidden': true,
-                            style: {
-                              opacity: 0,
-                              pointerEvents: 'none',
-                              userSelect: 'none',
-                            },
-                          })}
-                        >
-                          {(() => {
-                            if (!connected) {
-                              return (
-                                <button
-                                  onClick={openConnectModal}
-                                  type="button"
-                                  className="px-4 py-1.5 bg-white text-black rounded-lg border border-[#27272a] hover:bg-gray-100 transition-all duration-200 text-sm font-medium"
-                                >
-                                  Connect Wallet
-                                </button>
-                              );
-                            }
-
-                            return (
-                              <div className="flex items-center gap-2">
-                                <button
-                                  onClick={openAccountModal}
-                                  type="button"
-                                  className="flex items-center gap-2 px-3 py-1.5 bg-[#09090b] rounded-lg border border-[#27272a] hover:border-gray-700 transition-all duration-200 cursor-pointer"
-                                >
-                                  <div className="relative w-6 h-6 rounded-full overflow-hidden">
-                                    <Image
-                                      src="/a10449a3-3a09-4686-bee2-96074c95c47d.png"
-                                      alt="Profile"
-                                      width={24}
-                                      height={24}
-                                      className="w-6 h-6 rounded-full object-cover"
-                                      style={{ aspectRatio: '1 / 1' }}
-                                    />
-                                  </div>
-                                  <div className="w-2 h-2 bg-green-500 rounded-full pulse-green"></div>
-                                  <span className="text-sm mono text-gray-300">
-                                    {account.displayName}
-                                  </span>
-                                </button>
-                              </div>
-                            );
-                          })()}
-                        </div>
-                      );
-                    }}
-                  </ConnectButton.Custom>
-                </div>
-              ) : (
-                // Keplr wallet display
-                <div 
-                  className="flex items-center gap-2 px-3 py-1.5 bg-[#09090b] rounded-lg border border-[#27272a] hover:border-gray-700 transition-all duration-200 cursor-pointer" 
-                  onClick={disconnectWallet}
-                >
-                  <div className="relative w-6 h-6 rounded-full overflow-hidden">
-                    <Image
-                      src="/a10449a3-3a09-4686-bee2-96074c95c47d.png"
-                      alt="Profile"
-                      width={24}
-                      height={24}
-                      className="w-6 h-6 rounded-full object-cover"
-                      style={{ aspectRatio: '1 / 1' }}
-                    />
-                  </div>
-                  <div className="w-2 h-2 bg-green-500 rounded-full pulse-green"></div>
-                  <span className="text-sm mono text-gray-300">{getTruncatedAddress()}</span>
-                </div>
-              )}
-              <div className="w-px h-6 bg-[#27272a]"></div>
-            </>
+          {!isConnected ? (
+            <ConnectWalletMenu />
           ) : (
-            <>
-              <button
-                onClick={() => router.push('/login')}
-                className="px-4 py-1.5 bg-white text-black rounded-lg border border-[#27272a] hover:bg-gray-100 transition-all duration-200 text-sm font-medium"
+            <div className="flex items-center gap-2">
+              <Link
+                href="/profile"
+                className="flex items-center gap-2 px-3 py-1.5 bg-[#09090b] rounded-lg border border-[#27272a] hover:border-gray-700 transition-colors"
               >
-                Connect Wallet
+                <div className="w-2 h-2 bg-green-500 rounded-full pulse-green"></div>
+                <span className="text-sm mono text-gray-300">
+                  {address?.slice(0, 6)}...{address?.slice(-4)}
+                </span>
+              </Link>
+              <button
+                onClick={() => disconnect()}
+                className="px-3 py-1.5 text-sm text-gray-400 hover:text-white transition-colors"
+                title="Disconnect"
+              >
+                Disconnect
               </button>
-              <div className="w-px h-6 bg-[#27272a]"></div>
-            </>
+            </div>
           )}
+          <div className="w-px h-6 bg-[#27272a]"></div>
           <div className="flex items-center gap-3">
             <a
               href="#"

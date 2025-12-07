@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import { Toaster } from "react-hot-toast";
-import { WalletProvider } from "@/components/WalletProvider";
+import { Providers } from "./providers";
 import "./globals.css";
 
 const inter = Inter({
@@ -31,7 +31,7 @@ export default function RootLayout({
       <body
         className={`${inter.variable} ${jetbrainsMono.variable} font-sans antialiased bg-black text-white min-h-screen`}
       >
-        <WalletProvider>
+        <Providers>
           {children}
           <Toaster
             position="bottom-right"
@@ -65,7 +65,7 @@ export default function RootLayout({
               },
             }}
           />
-        </WalletProvider>
+        </Providers>
       </body>
     </html>
   );
