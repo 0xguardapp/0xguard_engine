@@ -280,3 +280,19 @@ h1, h2, h3, h4, h5, h6 {
     transform: scale(1);
   }
 }
+
+/* Smooth fade-in animation for wallet menu */
+@keyframes walletMenuFadeIn {
+  from { 
+    opacity: 0; 
+    transform: translateY(4px); 
+  }
+  to { 
+    opacity: 1; 
+    transform: translateY(0); 
+  }
+}
+
+.animate-fadeIn {
+  animation: walletMenuFadeIn 0.15s ease-out;
+}

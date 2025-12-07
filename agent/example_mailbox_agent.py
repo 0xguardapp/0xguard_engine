@@ -9,9 +9,9 @@ This example shows how to initialize an Agent class using:
 from uagents import Agent, Context
 import os
 
-# Get mailbox key from environment variable or replace with your actual key
+# Get mailbox key from environment variable
 # You can set this via: export MAILBOX_KEY="your_mailbox_key_here"
-MAILBOX_KEY = os.getenv("MAILBOX_KEY", "your_mailbox_key_here")
+MAILBOX_KEY = os.getenv("MAILBOX_KEY")
 
 def create_agent_with_mailbox():
     """
@@ -38,7 +38,7 @@ def create_agent_with_mailbox():
     @agent.on_event("startup")
     async def startup(ctx: Context):
         ctx.logger.info(f"Agent started with address: {agent.address}")
-        if MAILBOX_KEY != "your_mailbox_key_here":
+        if MAILBOX_KEY:
             ctx.logger.info(f"Mailbox key configured: {MAILBOX_KEY[:20]}...")
         else:
             ctx.logger.warning("Please set MAILBOX_KEY environment variable or update the code")

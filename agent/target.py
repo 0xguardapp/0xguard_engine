@@ -1,4 +1,5 @@
 from uagents import Agent, Context, Model, Protocol
+import agentverse_patch  # ⚡ Adds enable_agentverse() + use_mailbox()
 from uagents_core.contrib.protocols.chat import (
     AgentContent,
     ChatAcknowledgement,
@@ -6,10 +7,6 @@ from uagents_core.contrib.protocols.chat import (
     EndSessionContent,
     TextContent,
     chat_protocol_spec
-)
-from uagents_core.utils.registration import (  # pyright: ignore[reportMissingImports]
-    register_chat_agent,
-    RegistrationRequestCredentials,
 )
 import sys
 import os
@@ -136,17 +133,34 @@ Return JSON format: {{"attack_type": "string", "threat_level": "string", "defens
 def create_target_agent(port: int = None, judge_address: str = None) -> Agent:
     # Get configuration from config.py
     agent_ip = os.getenv("TARGET_IP") or os.getenv("AGENT_IP", "localhost")
-    agent_port = port or config.TARGET_PORT
-    agent_seed = os.getenv("TARGET_SEED") or os.getenv("AGENT_SEED", "target_secret_seed_phrase")
-    use_mailbox = os.getenv("USE_MAILBOX", "true").lower() == "true"
+    agent_port = port or int(os.getenv("AGENT_PORT_TARGET") or config.TARGET_PORT)
+    # All agents use TARGET_SECRET_KEY as seed for consistency (can be overridden via TARGET_SEED or AGENT_SEED)
+    agent_seed = os.getenv("TARGET_SEED") or os.getenv("AGENT_SEED") or config.TARGET_SECRET_KEY
     
+    # PHASE 3: Instantiate agent with name, seed, and port only
     target = Agent(
-        name="target_agent",
+        name="target-agent",
+        seed=agent_seed,
         port=agent_port,
-        seed=agent_seed,  # CRITICAL: Don't hardcode seeds in production!
-        endpoint=[f"http://{agent_ip}:{agent_port}/submit"],
-        mailbox=use_mailbox,  # Recommended for Agentverse
     )
+    
+    # After agent = Agent(...)
+    AGENTVERSE_KEY = config.AGENTVERSE_KEY
+    MAILBOX_KEY = config.MAILBOX_KEY or os.getenv("TARGET_MAILBOX_KEY")
+    
+    if AGENTVERSE_KEY:
+        try:
+            target.enable_agentverse(AGENTVERSE_KEY)
+            log("AgentVerse", "Agent successfully registered with AgentVerse", "🌐")
+        except Exception as e:
+            log("AgentVerse", f"Failed to register with AgentVerse: {e}", "❌")
+    
+    if MAILBOX_KEY:
+        try:
+            target.use_mailbox(MAILBOX_KEY)
+            log("Mailbox", "Mailbox enabled", "📫")
+        except Exception as e:
+            log("Mailbox", f"Failed to initialize mailbox: {e}", "❌")
     
     # Include the Chat Protocol (optional - only for Agentverse registration)
     # Note: This may fail verification in some uagents versions, but core functionality works without it
@@ -204,29 +218,7 @@ def create_target_agent(port: int = None, judge_address: str = None) -> Agent:
             except Exception as e:
                 log("Target", f"Failed to register agent identity: {str(e)}", "⚠️", "warning")
         
-        # Register with Agentverse
-        try:
-            agentverse_key = config.AGENTVERSE_KEY
-            agent_seed_phrase = os.environ.get("AGENT_SEED_PHRASE") or agent_seed
-            endpoint_url = f"http://{agent_ip}:{agent_port}/submit"
-            
-            if agentverse_key:
-                register_chat_agent(
-                    "target",
-                    endpoint_url,
-                    active=True,
-                    credentials=RegistrationRequestCredentials(
-                        agentverse_api_key=agentverse_key,
-                        agent_seed_phrase=agent_seed_phrase,
-                    ),
-                )
-                ctx.logger.info(f"Target Agent registered with Agentverse at {endpoint_url}")
-                log("Target", f"Registered with Agentverse: {endpoint_url}", "🎯", "info")
-            else:
-                ctx.logger.warning("AGENTVERSE_KEY not set, skipping Agentverse registration")
-        except Exception as e:
-            ctx.logger.error(f"Failed to register with Agentverse: {str(e)}")
-            log("Target", f"Agentverse registration error: {str(e)}", "🎯", "info")
+        # Agentverse registration is now handled via enable_agentverse() during agent creation
 
     @target.on_message(model=AttackMessage)
     async def handle_attack(ctx: Context, sender: str, msg: AttackMessage):

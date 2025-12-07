@@ -1,4 +1,5 @@
 from uagents import Agent, Context, Model, Protocol  # pyright: ignore[reportMissingImports]
+import agentverse_patch  # ⚡ Adds enable_agentverse() + use_mailbox()
 from uagents_core.contrib.protocols.chat import (  # pyright: ignore[reportMissingImports]
     ChatMessage,
     ChatAcknowledgement,
@@ -6,10 +7,6 @@ from uagents_core.contrib.protocols.chat import (  # pyright: ignore[reportMissi
     EndSessionContent,
     TextContent,
     chat_protocol_spec
-)
-from uagents_core.utils.registration import (  # pyright: ignore[reportMissingImports]
-    register_chat_agent,
-    RegistrationRequestCredentials,
 )
 import sys
 import os
@@ -122,17 +119,34 @@ def create_red_team_agent(
 ) -> Agent:
     # Get configuration from config.py
     agent_ip = os.getenv("RED_TEAM_IP") or os.getenv("AGENT_IP", "localhost")
-    agent_port = port or config.RED_TEAM_PORT
-    agent_seed = os.getenv("RED_TEAM_SEED") or os.getenv("AGENT_SEED", "red_team_secret_seed_phrase")
-    use_mailbox = os.getenv("USE_MAILBOX", "true").lower() == "true"
+    agent_port = port or int(os.getenv("AGENT_PORT_RED_TEAM") or config.RED_TEAM_PORT)
+    # All agents use TARGET_SECRET_KEY as seed for consistency (can be overridden via RED_TEAM_SEED or AGENT_SEED)
+    agent_seed = os.getenv("RED_TEAM_SEED") or os.getenv("AGENT_SEED") or config.TARGET_SECRET_KEY
     
+    # PHASE 3: Instantiate agent with name, seed, and port only
     red_team = Agent(
-        name="red_team_agent",
+        name="red-team-agent",
+        seed=agent_seed,
         port=agent_port,
-        seed=agent_seed,  # CRITICAL: Don't hardcode seeds in production!
-        endpoint=[f"http://{agent_ip}:{agent_port}/submit"],
-        mailbox=use_mailbox,  # Recommended for Agentverse
     )
+    
+    # After agent = Agent(...)
+    AGENTVERSE_KEY = config.AGENTVERSE_KEY
+    MAILBOX_KEY = config.MAILBOX_KEY or os.getenv("RED_TEAM_MAILBOX_KEY")
+    
+    if AGENTVERSE_KEY:
+        try:
+            red_team.enable_agentverse(AGENTVERSE_KEY)
+            log("AgentVerse", "Agent successfully registered with AgentVerse", "🌐")
+        except Exception as e:
+            log("AgentVerse", f"Failed to register with AgentVerse: {e}", "❌")
+    
+    if MAILBOX_KEY:
+        try:
+            red_team.use_mailbox(MAILBOX_KEY)
+            log("Mailbox", "Mailbox enabled", "📫")
+        except Exception as e:
+            log("Mailbox", f"Failed to initialize mailbox: {e}", "❌")
     
     # Include the Chat Protocol (optional - only for Agentverse registration)
     # Note: This may fail verification in some uagents versions, but core functionality works without it
@@ -209,29 +223,7 @@ def create_red_team_agent(
             except Exception as e:
                 log("RedTeam", f"Failed to register agent identity: {str(e)}", "⚠️", "warning")
         
-        # Register with Agentverse
-        try:
-            agentverse_key = config.AGENTVERSE_KEY
-            agent_seed_phrase = os.environ.get("AGENT_SEED_PHRASE") or agent_seed
-            endpoint_url = f"http://{agent_ip}:{agent_port}/submit"
-            
-            if agentverse_key:
-                register_chat_agent(
-                    "red-team",
-                    endpoint_url,
-                    active=True,
-                    credentials=RegistrationRequestCredentials(
-                        agentverse_api_key=agentverse_key,
-                        agent_seed_phrase=agent_seed_phrase,
-                    ),
-                )
-                ctx.logger.info(f"Red Team Agent registered with Agentverse at {endpoint_url}")
-                log("RedTeam", f"Registered with Agentverse: {endpoint_url}", "🔴", "info")
-            else:
-                ctx.logger.warning("AGENTVERSE_KEY not set, skipping Agentverse registration")
-        except Exception as e:
-            ctx.logger.error(f"Failed to register with Agentverse: {str(e)}")
-            log("RedTeam", f"Agentverse registration error: {str(e)}", "🔴", "info")
+        # Agentverse registration is now handled via enable_agentverse() during agent creation
         
         # Read known exploits from Unibase on startup
         try:

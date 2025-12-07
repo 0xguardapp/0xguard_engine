@@ -19,6 +19,22 @@ try:
 except ImportError:
     pass  # dotenv not available, continue without it
 
+# Load API keys with no defaults
+_ASI_API_KEY = os.getenv("ASI_API_KEY")
+_AGENTVERSE_KEY = os.getenv("AGENTVERSE_KEY")
+_MAILBOX_KEY = os.getenv("MAILBOX_KEY")
+_TARGET_SECRET_KEY = os.getenv("TARGET_SECRET_KEY")
+
+# Validate required keys
+if not _AGENTVERSE_KEY:
+    raise RuntimeError("AGENTVERSE_KEY missing. Set in agent/.env")
+
+if not _ASI_API_KEY:
+    raise RuntimeError("ASI_API_KEY missing. Set in agent/.env")
+
+if not _TARGET_SECRET_KEY:
+    raise RuntimeError("TARGET_SECRET_KEY missing. Set in agent/.env")
+
 
 @dataclass
 class Config:
@@ -43,11 +59,11 @@ class Config:
     JUDGE_PRIVATE_KEY: str = os.getenv("JUDGE_PRIVATE_KEY", "")
     BOUNTY_TOKEN_ADDRESS: str = os.getenv("BOUNTY_TOKEN_ADDRESS", "")
     
-    # API Keys (Required)
-    ASI_API_KEY: str = os.getenv("ASI_API_KEY", "")
-    AGENTVERSE_KEY: str = os.getenv("AGENTVERSE_KEY", "")
-    MAILBOX_KEY: str = os.getenv("MAILBOX_KEY", "")
-    TARGET_SECRET_KEY: str = os.getenv("TARGET_SECRET_KEY", "")
+    # API Keys (Required) - no hardcoded defaults
+    ASI_API_KEY: str = _ASI_API_KEY or ""
+    AGENTVERSE_KEY: str = _AGENTVERSE_KEY or ""
+    MAILBOX_KEY: str = _MAILBOX_KEY or ""
+    TARGET_SECRET_KEY: str = _TARGET_SECRET_KEY or ""
     
     # Bounty Rates (in tokens)
     BOUNTY_LOW: int = 50

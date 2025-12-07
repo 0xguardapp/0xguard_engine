@@ -1,14 +1,28 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useWallet } from '@/hooks/useWallet';
+import ConnectWalletMenu from '@/components/ConnectWalletMenu';
+import { useAccount, useDisconnect } from 'wagmi';
 
 export default function Header() {
   const router = useRouter();
-  const { isConnected, address, getTruncatedAddress } = useWallet();
+  const { address, isConnected } = useAccount();
+  const { disconnect } = useDisconnect();
+
+  useEffect(() => {
+    if (isConnected && address) {
+      fetch('/api/register-agent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agent_address: address }),
+      }).catch((error) => {
+        console.error('Failed to register agent:', error);
+      });
+    }
+  }, [isConnected, address]);
 
   return (
     <header className="border-b border-[#27272a] bg-black sticky top-0 z-50 backdrop-blur-sm bg-black/95">
@@ -29,36 +43,26 @@ export default function Header() {
           <div className="text-gray-400 text-sm">my-team / audit-production</div>
         </div>
         <div className="flex items-center gap-3">
-          {isConnected && address ? (
-            <>
-              {/* Mock user display */}
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-[#09090b] rounded-lg border border-[#27272a] hover:border-gray-700 transition-all duration-200 cursor-pointer">
-                <div className="relative w-6 h-6 rounded-full overflow-hidden">
-                  <Image
-                    src="/a10449a3-3a09-4686-bee2-96074c95c47d.png"
-                    alt="Profile"
-                    width={24}
-                    height={24}
-                    className="w-6 h-6 rounded-full object-cover"
-                    style={{ aspectRatio: '1 / 1' }}
-                  />
-                </div>
-                <div className="w-2 h-2 bg-green-500 rounded-full pulse-green"></div>
-                <span className="text-sm mono text-gray-300">{getTruncatedAddress()}</span>
-              </div>
-              <div className="w-px h-6 bg-[#27272a]"></div>
-            </>
+          {!isConnected ? (
+            <ConnectWalletMenu />
           ) : (
-            <>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-[#09090b] rounded-lg border border-[#27272a]">
+                <div className="w-2 h-2 bg-green-500 rounded-full pulse-green"></div>
+                <span className="text-sm mono text-gray-300">
+                  {address?.slice(0, 6)}...{address?.slice(-4)}
+                </span>
+              </div>
               <button
-                onClick={() => router.push('/login')}
-                className="px-4 py-1.5 bg-white text-black rounded-lg border border-[#27272a] hover:bg-gray-100 transition-all duration-200 text-sm font-medium"
+                onClick={() => disconnect()}
+                className="px-3 py-1.5 text-sm text-gray-400 hover:text-white transition-colors"
+                title="Disconnect"
               >
-                Login
+                Disconnect
               </button>
-              <div className="w-px h-6 bg-[#27272a]"></div>
-            </>
+            </div>
           )}
+          <div className="w-px h-6 bg-[#27272a]"></div>
           <div className="flex items-center gap-3">
             <a
               href="#"

@@ -20,8 +20,11 @@ sys.modules['logger'] = type(sys)('logger')
 sys.modules['logger'].log = MockLogger.log
 
 # ASI.Cloud API Configuration
-ASI_API_KEY = os.getenv("ASI_API_KEY", "sk_f19e4e7f7c0e460e9ebeed7132a13fedcca7c7d7133a482ca0636e2850751d2b")
+ASI_API_KEY = os.getenv("ASI_API_KEY")
 ASI_API_URL = os.getenv("ASI_API_URL", "https://api.asi.cloud/v1/chat/completions")
+
+if not ASI_API_KEY:
+    raise RuntimeError("ASI_API_KEY missing. Set in agent/.env")
 
 
 async def generate_attack() -> str:

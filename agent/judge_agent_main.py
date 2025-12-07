@@ -85,7 +85,7 @@ class IntegratedJudgeAgent:
         
         judge_config = {
             "agent_id": "judge_agent_main",
-            "secret_key": getattr(self.config, "TARGET_SECRET_KEY", "fetch_ai_2024"),
+            "secret_key": self.config.TARGET_SECRET_KEY,
             "unibase_config": {
                 "enabled": True  # Default enabled
             },
