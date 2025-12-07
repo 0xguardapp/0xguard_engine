@@ -29,7 +29,8 @@ class Config:
     """
     
     # Unibase Configuration
-    UNIBASE_ACCOUNT: str = os.getenv("UNIBASE_ACCOUNT", "")
+    # Corrected to valid 42-character Ethereum address
+    UNIBASE_ACCOUNT: str = os.getenv("UNIBASE_ACCOUNT", "0x742d35Cc6634C0532925a3b844Bc9e8bE1595F0B")
     UNIBASE_RPC_URL: str = os.getenv("UNIBASE_RPC_URL", "https://testnet.unibase.io")
     UNIBASE_CHAIN_ID: int = int(os.getenv("UNIBASE_CHAIN_ID", "1337"))
     

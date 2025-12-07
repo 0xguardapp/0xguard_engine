@@ -22,6 +22,15 @@ from logger import log
 from unibase import get_known_exploits, save_exploit, format_exploit_message
 from config import get_config
 
+# Agent Registry Integration
+try:
+    from agent_registry_adapter import AgentRegistryAdapter
+    from unibase_agent_store import UnibaseAgentStore
+    REGISTRY_AVAILABLE = True
+except ImportError:
+    REGISTRY_AVAILABLE = False
+    log("RedTeam", "WARNING: Agent registry modules not available", "⚠️", "warning")
+
 # Load configuration
 config = get_config()
 
@@ -154,6 +163,17 @@ def create_red_team_agent(
         "known_exploits": set(),  # Set of known exploit strings from Unibase
         "last_payload": None,  # Track last sent payload to save on SUCCESS
     }
+    
+    # Initialize agent registry adapter
+    registry_adapter = None
+    unibase_store = None
+    if REGISTRY_AVAILABLE:
+        try:
+            unibase_store = UnibaseAgentStore()
+            registry_adapter = AgentRegistryAdapter(unibase_store=unibase_store)
+            log("RedTeam", "Agent registry adapter initialized", "📝", "info")
+        except Exception as e:
+            log("RedTeam", f"Failed to initialize registry adapter: {str(e)}", "⚠️", "warning")
 
     @red_team.on_event("startup")
     async def introduce(ctx: Context):
@@ -161,6 +181,33 @@ def create_red_team_agent(
         ctx.logger.info(f"Target: {target_address}")
         log("RedTeam", f"Red Team Agent started: {red_team.address}", "🔴", "info")
         log("RedTeam", f"Target: {target_address}", "🔴", "info")
+        
+        # Initialize agent identity in registry
+        if registry_adapter:
+            try:
+                from datetime import datetime
+                identity_data = {
+                    "name": "Red Team Agent",
+                    "role": "penetration_tester",
+                    "capabilities": ["exploit_generation", "vulnerability_discovery"],
+                    "version": "1.0.0",
+                    "address": red_team.address,
+                    "target": target_address,
+                    "started_at": datetime.now().isoformat()
+                }
+                result = registry_adapter.register_agent(red_team.address, identity_data)
+                if result.get("success"):
+                    log("RedTeam", f"[agent_identity_registered] Agent: {red_team.address}, Unibase Key: {result.get('unibase', {}).get('key', 'N/A')}", "📝", "info")
+                    # Update memory with startup info
+                    if unibase_store:
+                        unibase_store.update_agent_memory(red_team.address, {
+                            "startup_time": datetime.now().isoformat(),
+                            "status": "active",
+                            "target": target_address
+                        })
+                        log("RedTeam", f"[agent_memory_updated] Agent: {red_team.address}", "💾", "info")
+            except Exception as e:
+                log("RedTeam", f"Failed to register agent identity: {str(e)}", "⚠️", "warning")
         
         # Register with Agentverse
         try:
@@ -219,6 +266,22 @@ def create_red_team_agent(
             f"Sending attack #{state['attack_count']}: '{payload}'"
         )
         log("RedTeam", f"Executing vector: '{payload}'", "🔴", "attack")
+        
+        # Update reputation after attack action (+1 for active testing)
+        if registry_adapter:
+            try:
+                from datetime import datetime
+                metadata = {
+                    "action": "attack_sent",
+                    "attack_count": state["attack_count"],
+                    "payload": payload[:100],  # Truncate for storage
+                    "timestamp": datetime.now().isoformat()
+                }
+                rep_result = registry_adapter.record_agent_reputation(red_team.address, delta=1, metadata=metadata)
+                if rep_result.get("success"):
+                    log("RedTeam", f"[agent_reputation_updated] Agent: {red_team.address}, Delta: +1 (attack), New Score: {rep_result.get('combined', {}).get('on_chain_score', 'N/A')}", "📊", "info")
+            except Exception as e:
+                log("RedTeam", f"Failed to update reputation after attack: {str(e)}", "⚠️", "warning")
 
         # Send attack to Target
         await ctx.send(
@@ -255,6 +318,45 @@ def create_red_team_agent(
                     log("Unibase", f"Error saving exploit: {str(e)}", "💾", "info")
             elif successful_payload in state["known_exploits"]:
                 log("Unibase", f"Exploit already known, skipping save: {successful_payload}", "💾", "info")
+            
+            # Update reputation after successful exploit (trusted task) (+10 for successful exploit)
+            if registry_adapter:
+                try:
+                    from datetime import datetime
+                    metadata = {
+                        "action": "exploit_success",
+                        "payload": successful_payload[:100] if successful_payload else "unknown",
+                        "attack_count": state["attack_count"],
+                        "timestamp": datetime.now().isoformat()
+                    }
+                    rep_result = registry_adapter.record_agent_reputation(red_team.address, delta=10, metadata=metadata)
+                    if rep_result.get("success"):
+                        log("RedTeam", f"[agent_reputation_updated] Agent: {red_team.address}, Delta: +10 (exploit success), New Score: {rep_result.get('combined', {}).get('on_chain_score', 'N/A')}", "📊", "info")
+                    
+                    # Validate agent after trusted task (successful exploit discovery)
+                    validation_data = {
+                        "validator": "system",
+                        "validation_type": "exploit_discovery",
+                        "payload": successful_payload[:100] if successful_payload else "unknown",
+                        "result": "success",
+                        "timestamp": datetime.now().isoformat()
+                    }
+                    val_result = registry_adapter.validate_agent(red_team.address, validation_data)
+                    if val_result.get("success"):
+                        log("RedTeam", f"[agent_validated] Agent: {red_team.address}, Type: exploit_discovery, Payload: {successful_payload[:16] if successful_payload else 'unknown'}...", "✅", "info")
+                    
+                    # Update memory with exploit success info
+                    if unibase_store:
+                        unibase_store.update_agent_memory(red_team.address, {
+                            "last_exploit_success": datetime.now().isoformat(),
+                            "total_exploits": state.get("total_exploits", 0) + 1,
+                            "last_payload": successful_payload[:100] if successful_payload else None
+                        })
+                        log("RedTeam", f"[agent_memory_updated] Agent: {red_team.address}", "💾", "info")
+                        state["total_exploits"] = state.get("total_exploits", 0) + 1
+                        
+                except Exception as e:
+                    log("RedTeam", f"Failed to update registry after exploit success: {str(e)}", "⚠️", "warning")
             
             state["attack_complete"] = True
         elif msg.status == "DENIED":

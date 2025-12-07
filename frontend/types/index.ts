@@ -47,3 +47,41 @@ export interface ProofDetail {
   contractAddress?: string;
 }
 
+export interface AgentIdentity {
+  name?: string;
+  role?: string;
+  capabilities?: string[];
+  version?: string;
+  address: string;
+  started_at?: string;
+  unibase_key?: string;
+  identity_uri?: string;
+  registered_at?: number;
+  last_updated?: number;
+}
+
+export interface AgentReputation {
+  score: number;
+  lastUpdated: number;
+  evidenceURI: string;
+  history?: Array<{
+    delta: number;
+    timestamp: string;
+    metadata: any;
+  }>;
+}
+
+export interface AgentValidation {
+  valid: boolean;
+  evidenceURI: string;
+  lastValidated?: string;
+}
+
+export interface OnChainEvent {
+  type: 'AgentRegistered' | 'IdentityURIUpdated' | 'ReputationUpdated' | 'AgentValidated' | 'AgentRevoked';
+  transactionHash: string;
+  blockNumber: number;
+  timestamp: string;
+  data: any;
+}
+

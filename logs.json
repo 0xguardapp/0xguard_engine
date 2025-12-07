@@ -30,5 +30,932 @@
     "message": "Proof Minted. Hash: zk_c469ce659bb81086 (Verified)",
     "type": "info",
     "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T03:58:39.824133",
+    "agent": "AgentRegistryAdapter",
+    "message": "WARNING: web3 not available, on-chain operations will be stubbed",
+    "category": "error",
+    "icon": "\u26a0\ufe0f",
+    "type": "warning",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.819409",
+    "agent": "AgentRegistryAdapter",
+    "message": "WARNING: web3 not available, on-chain operations will be stubbed",
+    "category": "error",
+    "icon": "\u26a0\ufe0f",
+    "type": "warning",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.823918",
+    "agent": "AgentRegistryAdapter",
+    "message": "Error initializing Web3: name 'geth_poa_middleware' is not defined",
+    "category": "error",
+    "icon": "\u274c",
+    "type": "error",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.824356",
+    "agent": "AgentRegistryAdapter",
+    "message": "Registering agent: 0x742d35Cc6634C0532925a3b844Bc9e8bE1595F0B",
+    "category": "status",
+    "icon": "\ud83d\udcdd",
+    "type": "info",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.824444",
+    "agent": "AgentRegistryAdapter",
+    "message": "Stored in Unibase: unibase_key_2c634b56b0d1a30b",
+    "category": "status",
+    "icon": "\ud83d\udcbe",
+    "type": "info",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.824515",
+    "agent": "AgentRegistryAdapter",
+    "message": "Error calling on-chain registry: 'NoneType' object has no attribute 'to_checksum_address'",
+    "category": "error",
+    "icon": "\u274c",
+    "type": "error",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.850369",
+    "agent": "AgentRegistryAdapter",
+    "message": "Error initializing Web3: name 'geth_poa_middleware' is not defined",
+    "category": "error",
+    "icon": "\u274c",
+    "type": "error",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.850926",
+    "agent": "AgentRegistryAdapter",
+    "message": "Registering agent: 0x742d35Cc6634C0532925a3b844Bc9e8bE1595F0B",
+    "category": "status",
+    "icon": "\ud83d\udcdd",
+    "type": "info",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.851043",
+    "agent": "AgentRegistryAdapter",
+    "message": "Stored in Unibase: unibase_key_2c634b56b0d1a30b",
+    "category": "status",
+    "icon": "\ud83d\udcbe",
+    "type": "info",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.851127",
+    "agent": "AgentRegistryAdapter",
+    "message": "Error calling on-chain registry: 'NoneType' object has no attribute 'to_checksum_address'",
+    "category": "error",
+    "icon": "\u274c",
+    "type": "error",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.851203",
+    "agent": "AgentRegistryAdapter",
+    "message": "Registering agent: 0x742d35Cc6634C0532925a3b844Bc9e8bE1595F0B",
+    "category": "status",
+    "icon": "\ud83d\udcdd",
+    "type": "info",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.851283",
+    "agent": "AgentRegistryAdapter",
+    "message": "Stored in Unibase: unibase_key_2c634b56b0d1a30b",
+    "category": "status",
+    "icon": "\ud83d\udcbe",
+    "type": "info",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.851449",
+    "agent": "AgentRegistryAdapter",
+    "message": "Error calling on-chain registry: 'NoneType' object has no attribute 'to_checksum_address'",
+    "category": "error",
+    "icon": "\u274c",
+    "type": "error",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.857455",
+    "agent": "AgentRegistryAdapter",
+    "message": "Error initializing Web3: name 'geth_poa_middleware' is not defined",
+    "category": "error",
+    "icon": "\u274c",
+    "type": "error",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.857904",
+    "agent": "AgentRegistryAdapter",
+    "message": "Registering agent: invalid",
+    "category": "status",
+    "icon": "\ud83d\udcdd",
+    "type": "info",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.858085",
+    "agent": "AgentRegistryAdapter",
+    "message": "Stored in Unibase: unibase_key_464d2df3e3f64c26",
+    "category": "status",
+    "icon": "\ud83d\udcbe",
+    "type": "info",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.858245",
+    "agent": "AgentRegistryAdapter",
+    "message": "Error calling on-chain registry: 'NoneType' object has no attribute 'to_checksum_address'",
+    "category": "error",
+    "icon": "\u274c",
+    "type": "error",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.859054",
+    "agent": "AgentRegistryAdapter",
+    "message": "Error initializing Web3: name 'geth_poa_middleware' is not defined",
+    "category": "error",
+    "icon": "\u274c",
+    "type": "error",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.859406",
+    "agent": "AgentRegistryAdapter",
+    "message": "Registering agent: 0x742d35Cc6634C0532925a3b844Bc9e8bE1595F0B",
+    "category": "status",
+    "icon": "\ud83d\udcdd",
+    "type": "info",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.859568",
+    "agent": "AgentRegistryAdapter",
+    "message": "Stored in Unibase: unibase_key_2c634b56b0d1a30b",
+    "category": "status",
+    "icon": "\ud83d\udcbe",
+    "type": "info",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.859726",
+    "agent": "AgentRegistryAdapter",
+    "message": "Error calling on-chain registry: 'NoneType' object has no attribute 'to_checksum_address'",
+    "category": "error",
+    "icon": "\u274c",
+    "type": "error",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.859883",
+    "agent": "AgentRegistryAdapter",
+    "message": "Updating identity for: 0x742d35Cc6634C0532925a3b844Bc9e8bE1595F0B",
+    "category": "status",
+    "icon": "\ud83d\udcdd",
+    "type": "info",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.860046",
+    "agent": "AgentRegistryAdapter",
+    "message": "Updated in Unibase: unibase_key_2c634b56b0d1a30b",
+    "category": "status",
+    "icon": "\ud83d\udcbe",
+    "type": "info",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.860229",
+    "agent": "AgentRegistryAdapter",
+    "message": "Error updating on-chain: 'NoneType' object has no attribute 'to_checksum_address'",
+    "category": "error",
+    "icon": "\u274c",
+    "type": "error",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.861017",
+    "agent": "AgentRegistryAdapter",
+    "message": "Error initializing Web3: name 'geth_poa_middleware' is not defined",
+    "category": "error",
+    "icon": "\u274c",
+    "type": "error",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.861493",
+    "agent": "AgentRegistryAdapter",
+    "message": "Updating identity for: 0x742d35Cc6634C0532925a3b844Bc9e8bE1595F0B",
+    "category": "status",
+    "icon": "\ud83d\udcdd",
+    "type": "info",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.861707",
+    "agent": "AgentRegistryAdapter",
+    "message": "Updated in Unibase: unibase_key_2c634b56b0d1a30b",
+    "category": "status",
+    "icon": "\ud83d\udcbe",
+    "type": "info",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.861834",
+    "agent": "AgentRegistryAdapter",
+    "message": "Error updating on-chain: 'NoneType' object has no attribute 'to_checksum_address'",
+    "category": "error",
+    "icon": "\u274c",
+    "type": "error",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.862797",
+    "agent": "AgentRegistryAdapter",
+    "message": "Error initializing Web3: name 'geth_poa_middleware' is not defined",
+    "category": "error",
+    "icon": "\u274c",
+    "type": "error",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.863148",
+    "agent": "AgentRegistryAdapter",
+    "message": "Recording reputation for: 0x742d35Cc6634C0532925a3b844Bc9e8bE1595F0B, delta: 10",
+    "category": "status",
+    "icon": "\ud83d\udcca",
+    "type": "info",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.863287",
+    "agent": "AgentRegistryAdapter",
+    "message": "Stored reputation in Unibase: unibase_key_860933c126f029b5",
+    "category": "status",
+    "icon": "\ud83d\udcbe",
+    "type": "info",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.863416",
+    "agent": "AgentRegistryAdapter",
+    "message": "Error calling on-chain registry: 'NoneType' object has no attribute 'to_checksum_address'",
+    "category": "error",
+    "icon": "\u274c",
+    "type": "error",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.869833",
+    "agent": "AgentRegistryAdapter",
+    "message": "Error initializing Web3: name 'geth_poa_middleware' is not defined",
+    "category": "error",
+    "icon": "\u274c",
+    "type": "error",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.870343",
+    "agent": "AgentRegistryAdapter",
+    "message": "Recording reputation for: 0x742d35Cc6634C0532925a3b844Bc9e8bE1595F0B, delta: 50",
+    "category": "status",
+    "icon": "\ud83d\udcca",
+    "type": "info",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.870493",
+    "agent": "AgentRegistryAdapter",
+    "message": "Stored reputation in Unibase: unibase_key_860933c126f029b5",
+    "category": "status",
+    "icon": "\ud83d\udcbe",
+    "type": "info",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.870617",
+    "agent": "AgentRegistryAdapter",
+    "message": "Error calling on-chain registry: 'NoneType' object has no attribute 'to_checksum_address'",
+    "category": "error",
+    "icon": "\u274c",
+    "type": "error",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.870736",
+    "agent": "AgentRegistryAdapter",
+    "message": "Recording reputation for: 0x742d35Cc6634C0532925a3b844Bc9e8bE1595F0B, delta: -20",
+    "category": "status",
+    "icon": "\ud83d\udcca",
+    "type": "info",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.870854",
+    "agent": "AgentRegistryAdapter",
+    "message": "Stored reputation in Unibase: unibase_key_860933c126f029b5",
+    "category": "status",
+    "icon": "\ud83d\udcbe",
+    "type": "info",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.870971",
+    "agent": "AgentRegistryAdapter",
+    "message": "Error calling on-chain registry: 'NoneType' object has no attribute 'to_checksum_address'",
+    "category": "error",
+    "icon": "\u274c",
+    "type": "error",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.879310",
+    "agent": "AgentRegistryAdapter",
+    "message": "Error initializing Web3: name 'geth_poa_middleware' is not defined",
+    "category": "error",
+    "icon": "\u274c",
+    "type": "error",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.879808",
+    "agent": "AgentRegistryAdapter",
+    "message": "Recording reputation for: 0x742d35Cc6634C0532925a3b844Bc9e8bE1595F0B, delta: 5",
+    "category": "status",
+    "icon": "\ud83d\udcca",
+    "type": "info",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.880032",
+    "agent": "AgentRegistryAdapter",
+    "message": "Stored reputation in Unibase: unibase_key_860933c126f029b5",
+    "category": "status",
+    "icon": "\ud83d\udcbe",
+    "type": "info",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.880200",
+    "agent": "AgentRegistryAdapter",
+    "message": "Error calling on-chain registry: 'NoneType' object has no attribute 'to_checksum_address'",
+    "category": "error",
+    "icon": "\u274c",
+    "type": "error",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.880403",
+    "agent": "AgentRegistryAdapter",
+    "message": "Recording reputation for: 0x742d35Cc6634C0532925a3b844Bc9e8bE1595F0B, delta: -100",
+    "category": "status",
+    "icon": "\ud83d\udcca",
+    "type": "info",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.880556",
+    "agent": "AgentRegistryAdapter",
+    "message": "Stored reputation in Unibase: unibase_key_860933c126f029b5",
+    "category": "status",
+    "icon": "\ud83d\udcbe",
+    "type": "info",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.880706",
+    "agent": "AgentRegistryAdapter",
+    "message": "Error calling on-chain registry: 'NoneType' object has no attribute 'to_checksum_address'",
+    "category": "error",
+    "icon": "\u274c",
+    "type": "error",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.881609",
+    "agent": "AgentRegistryAdapter",
+    "message": "Error initializing Web3: name 'geth_poa_middleware' is not defined",
+    "category": "error",
+    "icon": "\u274c",
+    "type": "error",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.882020",
+    "agent": "AgentRegistryAdapter",
+    "message": "Recording reputation for: 0x742d35Cc6634C0532925a3b844Bc9e8bE1595F0B, delta: 10",
+    "category": "status",
+    "icon": "\ud83d\udcca",
+    "type": "info",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.882149",
+    "agent": "AgentRegistryAdapter",
+    "message": "Stored reputation in Unibase: unibase_key_860933c126f029b5",
+    "category": "status",
+    "icon": "\ud83d\udcbe",
+    "type": "info",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.882287",
+    "agent": "AgentRegistryAdapter",
+    "message": "Error calling on-chain registry: 'NoneType' object has no attribute 'to_checksum_address'",
+    "category": "error",
+    "icon": "\u274c",
+    "type": "error",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.882420",
+    "agent": "AgentRegistryAdapter",
+    "message": "Recording reputation for: 0x742d35Cc6634C0532925a3b844Bc9e8bE1595F0B, delta: 5",
+    "category": "status",
+    "icon": "\ud83d\udcca",
+    "type": "info",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.882538",
+    "agent": "AgentRegistryAdapter",
+    "message": "Stored reputation in Unibase: unibase_key_860933c126f029b5",
+    "category": "status",
+    "icon": "\ud83d\udcbe",
+    "type": "info",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.882748",
+    "agent": "AgentRegistryAdapter",
+    "message": "Error calling on-chain registry: 'NoneType' object has no attribute 'to_checksum_address'",
+    "category": "error",
+    "icon": "\u274c",
+    "type": "error",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.883157",
+    "agent": "AgentRegistryAdapter",
+    "message": "Recording reputation for: 0x742d35Cc6634C0532925a3b844Bc9e8bE1595F0B, delta: -3",
+    "category": "status",
+    "icon": "\ud83d\udcca",
+    "type": "info",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.883324",
+    "agent": "AgentRegistryAdapter",
+    "message": "Stored reputation in Unibase: unibase_key_860933c126f029b5",
+    "category": "status",
+    "icon": "\ud83d\udcbe",
+    "type": "info",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.883462",
+    "agent": "AgentRegistryAdapter",
+    "message": "Error calling on-chain registry: 'NoneType' object has no attribute 'to_checksum_address'",
+    "category": "error",
+    "icon": "\u274c",
+    "type": "error",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.883609",
+    "agent": "AgentRegistryAdapter",
+    "message": "Recording reputation for: 0x742d35Cc6634C0532925a3b844Bc9e8bE1595F0B, delta: 20",
+    "category": "status",
+    "icon": "\ud83d\udcca",
+    "type": "info",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.883770",
+    "agent": "AgentRegistryAdapter",
+    "message": "Stored reputation in Unibase: unibase_key_860933c126f029b5",
+    "category": "status",
+    "icon": "\ud83d\udcbe",
+    "type": "info",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.883939",
+    "agent": "AgentRegistryAdapter",
+    "message": "Error calling on-chain registry: 'NoneType' object has no attribute 'to_checksum_address'",
+    "category": "error",
+    "icon": "\u274c",
+    "type": "error",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.890549",
+    "agent": "AgentRegistryAdapter",
+    "message": "Error initializing Web3: name 'geth_poa_middleware' is not defined",
+    "category": "error",
+    "icon": "\u274c",
+    "type": "error",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.891014",
+    "agent": "AgentRegistryAdapter",
+    "message": "Validating agent: 0x742d35Cc6634C0532925a3b844Bc9e8bE1595F0B",
+    "category": "status",
+    "icon": "\u2705",
+    "type": "info",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.891168",
+    "agent": "AgentRegistryAdapter",
+    "message": "Stored validation in Unibase: unibase_key_35f6dae34427fc34",
+    "category": "status",
+    "icon": "\ud83d\udcbe",
+    "type": "info",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.891302",
+    "agent": "AgentRegistryAdapter",
+    "message": "Error calling on-chain registry: 'NoneType' object has no attribute 'to_checksum_address'",
+    "category": "error",
+    "icon": "\u274c",
+    "type": "error",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.896531",
+    "agent": "AgentRegistryAdapter",
+    "message": "Error initializing Web3: name 'geth_poa_middleware' is not defined",
+    "category": "error",
+    "icon": "\u274c",
+    "type": "error",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.896917",
+    "agent": "AgentRegistryAdapter",
+    "message": "Validating agent: 0x742d35Cc6634C0532925a3b844Bc9e8bE1595F0B",
+    "category": "status",
+    "icon": "\u2705",
+    "type": "info",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.897062",
+    "agent": "AgentRegistryAdapter",
+    "message": "Stored validation in Unibase: unibase_key_35f6dae34427fc34",
+    "category": "status",
+    "icon": "\ud83d\udcbe",
+    "type": "info",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.897195",
+    "agent": "AgentRegistryAdapter",
+    "message": "Error calling on-chain registry: 'NoneType' object has no attribute 'to_checksum_address'",
+    "category": "error",
+    "icon": "\u274c",
+    "type": "error",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.903412",
+    "agent": "AgentRegistryAdapter",
+    "message": "Error initializing Web3: name 'geth_poa_middleware' is not defined",
+    "category": "error",
+    "icon": "\u274c",
+    "type": "error",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.904589",
+    "agent": "AgentRegistryAdapter",
+    "message": "Error initializing Web3: name 'geth_poa_middleware' is not defined",
+    "category": "error",
+    "icon": "\u274c",
+    "type": "error",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.905539",
+    "agent": "AgentRegistryAdapter",
+    "message": "Error initializing Web3: name 'geth_poa_middleware' is not defined",
+    "category": "error",
+    "icon": "\u274c",
+    "type": "error",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.907824",
+    "agent": "AgentRegistryAdapter",
+    "message": "Error initializing Web3: name 'geth_poa_middleware' is not defined",
+    "category": "error",
+    "icon": "\u274c",
+    "type": "error",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.908253",
+    "agent": "AgentRegistryAdapter",
+    "message": "Registering agent: 0x742d35Cc6634C0532925a3b844Bc9e8bE1595F0B",
+    "category": "status",
+    "icon": "\ud83d\udcdd",
+    "type": "info",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.908446",
+    "agent": "AgentRegistryAdapter",
+    "message": "Stored in Unibase: unibase_key_2c634b56b0d1a30b",
+    "category": "status",
+    "icon": "\ud83d\udcbe",
+    "type": "info",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.908611",
+    "agent": "AgentRegistryAdapter",
+    "message": "Error calling on-chain registry: 'NoneType' object has no attribute 'to_checksum_address'",
+    "category": "error",
+    "icon": "\u274c",
+    "type": "error",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.913909",
+    "agent": "AgentRegistryAdapter",
+    "message": "Error initializing Web3: name 'geth_poa_middleware' is not defined",
+    "category": "error",
+    "icon": "\u274c",
+    "type": "error",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.914289",
+    "agent": "AgentRegistryAdapter",
+    "message": "Registering agent: 0x742d35Cc6634C0532925a3b844Bc9e8bE1595F0B",
+    "category": "status",
+    "icon": "\ud83d\udcdd",
+    "type": "info",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.914442",
+    "agent": "AgentRegistryAdapter",
+    "message": "Stored in Unibase: unibase_key_2c634b56b0d1a30b",
+    "category": "status",
+    "icon": "\ud83d\udcbe",
+    "type": "info",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.914589",
+    "agent": "AgentRegistryAdapter",
+    "message": "Error calling on-chain registry: 'NoneType' object has no attribute 'to_checksum_address'",
+    "category": "error",
+    "icon": "\u274c",
+    "type": "error",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.920914",
+    "agent": "AgentRegistryAdapter",
+    "message": "Error initializing Web3: name 'geth_poa_middleware' is not defined",
+    "category": "error",
+    "icon": "\u274c",
+    "type": "error",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.921415",
+    "agent": "AgentRegistryAdapter",
+    "message": "Recording reputation for: 0x742d35Cc6634C0532925a3b844Bc9e8bE1595F0B, delta: 10",
+    "category": "status",
+    "icon": "\ud83d\udcca",
+    "type": "info",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.921596",
+    "agent": "AgentRegistryAdapter",
+    "message": "Stored reputation in Unibase: unibase_key_860933c126f029b5",
+    "category": "status",
+    "icon": "\ud83d\udcbe",
+    "type": "info",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.921748",
+    "agent": "AgentRegistryAdapter",
+    "message": "Error calling on-chain registry: 'NoneType' object has no attribute 'to_checksum_address'",
+    "category": "error",
+    "icon": "\u274c",
+    "type": "error",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.927041",
+    "agent": "AgentRegistryAdapter",
+    "message": "Error initializing Web3: name 'geth_poa_middleware' is not defined",
+    "category": "error",
+    "icon": "\u274c",
+    "type": "error",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.927467",
+    "agent": "AgentRegistryAdapter",
+    "message": "Validating agent: 0x742d35Cc6634C0532925a3b844Bc9e8bE1595F0B",
+    "category": "status",
+    "icon": "\u2705",
+    "type": "info",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.927653",
+    "agent": "AgentRegistryAdapter",
+    "message": "Stored validation in Unibase: unibase_key_35f6dae34427fc34",
+    "category": "status",
+    "icon": "\ud83d\udcbe",
+    "type": "info",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.927809",
+    "agent": "AgentRegistryAdapter",
+    "message": "Error calling on-chain registry: 'NoneType' object has no attribute 'to_checksum_address'",
+    "category": "error",
+    "icon": "\u274c",
+    "type": "error",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.933314",
+    "agent": "AgentRegistryAdapter",
+    "message": "Error initializing Web3: name 'geth_poa_middleware' is not defined",
+    "category": "error",
+    "icon": "\u274c",
+    "type": "error",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.933928",
+    "agent": "AgentRegistryAdapter",
+    "message": "Registering agent: 0x742d35Cc6634C0532925a3b844Bc9e8bE1595F0B",
+    "category": "status",
+    "icon": "\ud83d\udcdd",
+    "type": "info",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.934154",
+    "agent": "AgentRegistryAdapter",
+    "message": "Error registering agent: Unibase error",
+    "category": "error",
+    "icon": "\u274c",
+    "type": "error",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.934985",
+    "agent": "AgentRegistryAdapter",
+    "message": "Error initializing Web3: name 'geth_poa_middleware' is not defined",
+    "category": "error",
+    "icon": "\u274c",
+    "type": "error",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.970968",
+    "agent": "AgentRegistryAdapter",
+    "message": "Error initializing Web3: name 'geth_poa_middleware' is not defined",
+    "category": "error",
+    "icon": "\u274c",
+    "type": "error",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.971518",
+    "agent": "AgentRegistryAdapter",
+    "message": "Registering agent: 0x742d35Cc6634C0532925a3b844Bc9e8bE1595F0B",
+    "category": "status",
+    "icon": "\ud83d\udcdd",
+    "type": "info",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.971722",
+    "agent": "AgentRegistryAdapter",
+    "message": "Stored in Unibase: unibase_key_2c634b56b0d1a30b",
+    "category": "status",
+    "icon": "\ud83d\udcbe",
+    "type": "info",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.971917",
+    "agent": "AgentRegistryAdapter",
+    "message": "Error calling on-chain registry: 'NoneType' object has no attribute 'to_checksum_address'",
+    "category": "error",
+    "icon": "\u274c",
+    "type": "error",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.972130",
+    "agent": "AgentRegistryAdapter",
+    "message": "Recording reputation for: 0x742d35Cc6634C0532925a3b844Bc9e8bE1595F0B, delta: 5",
+    "category": "status",
+    "icon": "\ud83d\udcca",
+    "type": "info",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.972305",
+    "agent": "AgentRegistryAdapter",
+    "message": "Stored reputation in Unibase: unibase_key_860933c126f029b5",
+    "category": "status",
+    "icon": "\ud83d\udcbe",
+    "type": "info",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.972462",
+    "agent": "AgentRegistryAdapter",
+    "message": "Error calling on-chain registry: 'NoneType' object has no attribute 'to_checksum_address'",
+    "category": "error",
+    "icon": "\u274c",
+    "type": "error",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.972642",
+    "agent": "AgentRegistryAdapter",
+    "message": "Recording reputation for: 0x742d35Cc6634C0532925a3b844Bc9e8bE1595F0B, delta: 10",
+    "category": "status",
+    "icon": "\ud83d\udcca",
+    "type": "info",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.972806",
+    "agent": "AgentRegistryAdapter",
+    "message": "Stored reputation in Unibase: unibase_key_860933c126f029b5",
+    "category": "status",
+    "icon": "\ud83d\udcbe",
+    "type": "info",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.972966",
+    "agent": "AgentRegistryAdapter",
+    "message": "Error calling on-chain registry: 'NoneType' object has no attribute 'to_checksum_address'",
+    "category": "error",
+    "icon": "\u274c",
+    "type": "error",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.973132",
+    "agent": "AgentRegistryAdapter",
+    "message": "Recording reputation for: 0x742d35Cc6634C0532925a3b844Bc9e8bE1595F0B, delta: -3",
+    "category": "status",
+    "icon": "\ud83d\udcca",
+    "type": "info",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.973295",
+    "agent": "AgentRegistryAdapter",
+    "message": "Stored reputation in Unibase: unibase_key_860933c126f029b5",
+    "category": "status",
+    "icon": "\ud83d\udcbe",
+    "type": "info",
+    "is_vulnerability": false
+  },
+  {
+    "timestamp": "2025-12-07T04:07:09.973452",
+    "agent": "AgentRegistryAdapter",
+    "message": "Error calling on-chain registry: 'NoneType' object has no attribute 'to_checksum_address'",
+    "category": "error",
+    "icon": "\u274c",
+    "type": "error",
+    "is_vulnerability": false
   }
 ]

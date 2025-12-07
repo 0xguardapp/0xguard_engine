@@ -38,6 +38,15 @@ from proof_verifier import (
     ProofVerificationResult
 )
 
+# Agent Registry Integration
+try:
+    from agent_registry_adapter import AgentRegistryAdapter
+    from unibase_agent_store import UnibaseAgentStore
+    REGISTRY_AVAILABLE = True
+except ImportError:
+    REGISTRY_AVAILABLE = False
+    log("Judge", "WARNING: Agent registry modules not available", "⚠️", "warning")
+
 # Load configuration
 config = get_config()
 
@@ -197,12 +206,47 @@ def create_judge_agent(port: int = None) -> Agent:
         "audit_proofs": {},  # audit_id -> proof_hash
         "verified_proofs": {},  # proof_id -> ProofVerificationResult
     }
+    
+    # Initialize agent registry adapter
+    registry_adapter = None
+    unibase_store = None
+    if REGISTRY_AVAILABLE:
+        try:
+            unibase_store = UnibaseAgentStore()
+            registry_adapter = AgentRegistryAdapter(unibase_store=unibase_store)
+            log("Judge", "Agent registry adapter initialized", "📝", "info")
+        except Exception as e:
+            log("Judge", f"Failed to initialize registry adapter: {str(e)}", "⚠️", "warning")
 
     @judge.on_event("startup")
     async def introduce(ctx: Context):
         ctx.logger.info(f"Judge Agent started: {judge.address}")
         log("Judge", f"Judge Agent started: {judge.address}", "⚖️", "info")
         log("Judge", "Monitoring Red Team and Target communications...", "⚖️", "info")
+        
+        # Initialize agent identity in registry
+        if registry_adapter:
+            try:
+                identity_data = {
+                    "name": "Judge Agent",
+                    "role": "monitor",
+                    "capabilities": ["vulnerability_detection", "proof_verification", "bounty_distribution"],
+                    "version": "1.0.0",
+                    "address": judge.address,
+                    "started_at": datetime.now().isoformat()
+                }
+                result = registry_adapter.register_agent(judge.address, identity_data)
+                if result.get("success"):
+                    log("Judge", f"[agent_identity_registered] Agent: {judge.address}, Unibase Key: {result.get('unibase', {}).get('key', 'N/A')}", "📝", "info")
+                    # Update memory with startup info
+                    if unibase_store:
+                        unibase_store.update_agent_memory(judge.address, {
+                            "startup_time": datetime.now().isoformat(),
+                            "status": "active"
+                        })
+                        log("Judge", f"[agent_memory_updated] Agent: {judge.address}", "💾", "info")
+            except Exception as e:
+                log("Judge", f"Failed to register agent identity: {str(e)}", "⚠️", "warning")
         
         # Register with Agentverse
         try:
@@ -243,6 +287,20 @@ def create_judge_agent(port: int = None) -> Agent:
         # Keep only last 10 attacks to prevent memory growth
         if len(state["attack_flow"]) > 10:
             state["attack_flow"] = state["attack_flow"][-10:]
+        
+        # Update reputation after monitoring action (+1 for active monitoring)
+        if registry_adapter:
+            try:
+                metadata = {
+                    "action": "attack_monitoring",
+                    "sender": sender,
+                    "timestamp": datetime.now().isoformat()
+                }
+                rep_result = registry_adapter.record_agent_reputation(judge.address, delta=1, metadata=metadata)
+                if rep_result.get("success"):
+                    log("Judge", f"[agent_reputation_updated] Agent: {judge.address}, Delta: +1 (monitoring), New Score: {rep_result.get('combined', {}).get('on_chain_score', 'N/A')}", "📊", "info")
+            except Exception as e:
+                log("Judge", f"Failed to update reputation after monitoring: {str(e)}", "⚠️", "warning")
 
     @judge.on_message(model=ResponseMessage)
     async def handle_target_response(ctx: Context, sender: str, msg: ResponseMessage):
@@ -341,6 +399,65 @@ def create_judge_agent(port: int = None) -> Agent:
                         log("Judge", f"Proof verified on Midnight: {result.proof_hash}", "⚖️", "info", audit_id=audit_id)
                         # Structured log: zk_success
                         log("Judge", f"[zk_success] Proof submitted and verified successfully. Hash: {result.proof_hash}, Transaction ID: {transaction_id}, Status: {proof_status}, Audit ID: {audit_id}", "🎉", "info", audit_id=audit_id)
+                        
+                        # Update Judge agent reputation after successful proof verification (trusted task)
+                        if registry_adapter:
+                            try:
+                                # Store metadata to Unibase
+                                metadata = {
+                                    "proof_hash": result.proof_hash,
+                                    "transaction_id": transaction_id,
+                                    "audit_id": audit_id,
+                                    "risk_score": risk_score,
+                                    "severity": severity,
+                                    "exploit_payload": exploit_payload[:100],  # Truncate for storage
+                                    "verified_at": datetime.now().isoformat()
+                                }
+                                
+                                # Update reputation (+5 for successful proof verification)
+                                rep_result = registry_adapter.record_agent_reputation(
+                                    judge.address,
+                                    delta=5,
+                                    metadata=metadata
+                                )
+                                if rep_result.get("success"):
+                                    log("Judge", f"[agent_reputation_updated] Agent: {judge.address}, Delta: +5, New Score: {rep_result.get('combined', {}).get('on_chain_score', 'N/A')}", "📊", "info")
+                                
+                                # Validate agent after trusted task (proof verification)
+                                validation_data = {
+                                    "validator": "system",
+                                    "validation_type": "proof_verification",
+                                    "proof_hash": result.proof_hash,
+                                    "audit_id": audit_id,
+                                    "result": "verified",
+                                    "timestamp": datetime.now().isoformat()
+                                }
+                                val_result = registry_adapter.validate_agent(judge.address, validation_data)
+                                if val_result.get("success"):
+                                    log("Judge", f"[agent_validated] Agent: {judge.address}, Type: proof_verification, Proof: {result.proof_hash[:16]}...", "✅", "info")
+                                
+                                # Update memory with proof verification info
+                                if unibase_store:
+                                    unibase_store.update_agent_memory(judge.address, {
+                                        "last_proof_verified": datetime.now().isoformat(),
+                                        "total_proofs_verified": state.get("verified_proofs_count", 0) + 1,
+                                        "last_audit_id": audit_id
+                                    })
+                                    log("Judge", f"[agent_memory_updated] Agent: {judge.address}", "💾", "info")
+                                    state["verified_proofs_count"] = state.get("verified_proofs_count", 0) + 1
+                                    
+                            except Exception as e:
+                                log("Judge", f"Failed to update registry after proof verification: {str(e)}", "⚠️", "warning")
+                        
+                        # Optional ERC-3009 payout after successful proof verification
+                        erc3009_enabled = os.getenv("ERC3009_PAYOUTS_ENABLED", "false").lower() == "true"
+                        if erc3009_enabled and registry_adapter:
+                            try:
+                                # Note: ERC-3009 payouts would require AgentToken contract integration
+                                # This is a placeholder for future implementation
+                                log("Judge", f"[erc3009_payout] Payout enabled but not yet implemented for agent: {judge.address}", "💰", "info")
+                            except Exception as e:
+                                log("Judge", f"ERC-3009 payout error: {str(e)}", "⚠️", "warning")
                         
                         # Reward Red Team after proof verification
                         try:

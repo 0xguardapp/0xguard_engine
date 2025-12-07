@@ -4,7 +4,7 @@ import { useState, useCallback } from 'react';
 
 // Mock user object for hackathon demo
 const MOCK_USER = {
-  address: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb',
+  address: '0x742d35Cc6634C0532925a3b844Bc9e8bE1595F0B',
   displayName: '0x742d...5f0bEb',
   isConnected: true,
   walletType: 'ethereum' as const,

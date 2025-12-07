@@ -21,6 +21,15 @@ sys.path.insert(0, str(Path(__file__).parent))
 from logger import log
 from config import get_config
 
+# Agent Registry Integration
+try:
+    from agent_registry_adapter import AgentRegistryAdapter
+    from unibase_agent_store import UnibaseAgentStore
+    REGISTRY_AVAILABLE = True
+except ImportError:
+    REGISTRY_AVAILABLE = False
+    log("Target", "WARNING: Agent registry modules not available", "⚠️", "warning")
+
 # Load configuration
 config = get_config()
 
@@ -152,12 +161,48 @@ def create_target_agent(port: int = None, judge_address: str = None) -> Agent:
         log("Target", f"Chat Protocol inclusion failed (optional): {type(e).__name__}: {e}", "🎯", "info")
         # Agent will continue to function without chat protocol
 
+    # Initialize agent registry adapter
+    registry_adapter = None
+    unibase_store = None
+    if REGISTRY_AVAILABLE:
+        try:
+            unibase_store = UnibaseAgentStore()
+            registry_adapter = AgentRegistryAdapter(unibase_store=unibase_store)
+            log("Target", "Agent registry adapter initialized", "📝", "info")
+        except Exception as e:
+            log("Target", f"Failed to initialize registry adapter: {str(e)}", "⚠️", "warning")
+    
     @target.on_event("startup")
     async def introduce(ctx: Context):
         ctx.logger.info(f"Target Agent started: {target.address}")
         ctx.logger.info("Protecting SECRET_KEY...")
         log("Target", f"Target Agent started: {target.address}", "🎯", "info")
         log("Target", f"Listening on port {agent_port}", "🎯", "info")
+        
+        # Initialize agent identity in registry
+        if registry_adapter:
+            try:
+                from datetime import datetime
+                identity_data = {
+                    "name": "Target Agent",
+                    "role": "defender",
+                    "capabilities": ["attack_analysis", "defense"],
+                    "version": "1.0.0",
+                    "address": target.address,
+                    "started_at": datetime.now().isoformat()
+                }
+                result = registry_adapter.register_agent(target.address, identity_data)
+                if result.get("success"):
+                    log("Target", f"[agent_identity_registered] Agent: {target.address}, Unibase Key: {result.get('unibase', {}).get('key', 'N/A')}", "📝", "info")
+                    # Update memory with startup info
+                    if unibase_store:
+                        unibase_store.update_agent_memory(target.address, {
+                            "startup_time": datetime.now().isoformat(),
+                            "status": "active"
+                        })
+                        log("Target", f"[agent_memory_updated] Agent: {target.address}", "💾", "info")
+            except Exception as e:
+                log("Target", f"Failed to register agent identity: {str(e)}", "⚠️", "warning")
         
         # Register with Agentverse
         try:
@@ -211,6 +256,23 @@ def create_target_agent(port: int = None, judge_address: str = None) -> Agent:
             )
             ctx.logger.info("Attack blocked")
             log("Target", f"Attack blocked: '{msg.payload}'", "🎯", "info")
+            
+            # Update reputation after successfully blocking attack (+2 for defense)
+            if registry_adapter:
+                try:
+                    from datetime import datetime
+                    metadata = {
+                        "action": "attack_blocked",
+                        "attack_type": attack_type,
+                        "threat_level": threat_level,
+                        "payload": msg.payload[:100],  # Truncate for storage
+                        "timestamp": datetime.now().isoformat()
+                    }
+                    rep_result = registry_adapter.record_agent_reputation(target.address, delta=2, metadata=metadata)
+                    if rep_result.get("success"):
+                        log("Target", f"[agent_reputation_updated] Agent: {target.address}, Delta: +2 (defense), New Score: {rep_result.get('combined', {}).get('on_chain_score', 'N/A')}", "📊", "info")
+                except Exception as e:
+                    log("Target", f"Failed to update reputation after defense: {str(e)}", "⚠️", "warning")
 
         # Send response to Red Team (original sender)
         await ctx.send(sender, response)
@@ -221,6 +283,20 @@ def create_target_agent(port: int = None, judge_address: str = None) -> Agent:
                 await ctx.send(judge_address, response)
             except Exception as e:
                 ctx.logger.debug(f"Could not send to Judge: {str(e)}")
+        
+        # Update memory with attack handling info
+        if unibase_store:
+            try:
+                from datetime import datetime
+                unibase_store.update_agent_memory(target.address, {
+                    "last_attack_handled": datetime.now().isoformat(),
+                    "last_attack_type": attack_type,
+                    "last_threat_level": threat_level,
+                    "total_attacks_handled": ctx.storage.get("total_attacks_handled", 0) + 1 if hasattr(ctx, 'storage') else 1
+                })
+                log("Target", f"[agent_memory_updated] Agent: {target.address}", "💾", "info")
+            except Exception as e:
+                log("Target", f"Failed to update memory: {str(e)}", "⚠️", "warning")
 
     return target
 
