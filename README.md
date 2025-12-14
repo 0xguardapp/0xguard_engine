@@ -1,5 +1,9 @@
 # 0xGuard - Autonomous Security Intelligence Platform
 
+[https://0xguard.app]
+[https://x.com/0xguarddotapp]
+Contract : 
+
 <div align="center">
 
 ![0xGuard](https://img.shields.io/badge/0xGuard-AI%20Security%20Audit-FF6B6B?style=for-the-badge)
