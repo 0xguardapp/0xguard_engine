@@ -2,7 +2,7 @@
 
 [https://0xguard.app]
 [https://x.com/0xguarddotapp]
-Contract : 6hu67JimohVtsMg2tQdHYGdPbyqAimcyoqY3hr3wpump
+Contract : 
 
 <div align="center">
 
